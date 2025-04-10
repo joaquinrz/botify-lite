@@ -25,5 +25,3 @@
     }
 }
 ```
-
-6. Dont include sources keywords such as【4:1†source】as part of your response

@@ -21,6 +21,11 @@ class ChatResponse(BaseModel):
     displayResponse: str
 
 
+class SessionRequest(BaseModel):
+    """Request model for session management."""
+    session_id: str
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
@@ -87,3 +92,30 @@ async def chat_stream(request: ChatRequest):
                 yield f"Error processing streaming chat: {error_message}"
                 
         return EventSourceResponse(error_stream())
+
+
+@router.post("/session/cleanup")
+async def cleanup_session(request: SessionRequest):
+    """
+    Cleanup session resources.
+    
+    Args:
+        request: The session request containing the session_id to clean up
+        
+    Returns:
+        dict: Status of the cleanup operation
+    """
+    if openai_service is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Azure OpenAI service is not properly configured. Please check your credentials.env file."
+        )
+        
+    try:
+        success = await openai_service.cleanup_session(request.session_id)
+        if success:
+            return {"status": "success", "message": f"Session {request.session_id} cleaned up successfully"}
+        else:
+            return {"status": "not_found", "message": f"Session {request.session_id} not found"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error cleaning up session: {str(e)}")

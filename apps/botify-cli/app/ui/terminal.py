@@ -1,5 +1,6 @@
 import json
 import sys
+import time
 from typing import Optional, Dict, Any, List
 
 from rich.console import Console
@@ -146,14 +147,23 @@ class ChatTerminal:
             message: The user message to send.
         """
         try:
+            # Start timing the response
+            start_time = time.time()
+            
             with self.console.status("[bold blue]Waiting for response...[/bold blue]"):
                 response = api_client.chat(message)
+            
+            # Calculate elapsed time
+            elapsed_time = time.time() - start_time
             
             # Display the response
             formatted_response = self.format_response(response)
             self.console.print(Panel(Markdown(formatted_response), 
                                     title="Assistant", 
                                     border_style="blue"))
+            
+            # Display elapsed time
+            self.console.print(f"[dim italic]Response time: {elapsed_time:.2f} seconds[/dim italic]")
             
             # Save to history
             history_manager.save_conversation(message, response)
@@ -168,6 +178,9 @@ class ChatTerminal:
             message: The user message to send.
         """
         try:
+            # Start timing the response
+            start_time = time.time()
+            
             # Initialize buffer for accumulated response for history
             self.streaming_buffer = ""
             accumulated_raw_text = ""
@@ -186,6 +199,10 @@ class ChatTerminal:
                 
                 # Print a final newline
                 self.console.print()
+                
+                # Calculate and display elapsed time
+                elapsed_time = time.time() - start_time
+                self.console.print(f"[dim italic]Response time: {elapsed_time:.2f} seconds[/dim italic]")
                     
             except Exception as e:
                 self.console.print(f"\n[bold red]Error during streaming:[/bold red] {str(e)}")
