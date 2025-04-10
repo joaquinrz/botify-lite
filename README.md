@@ -59,6 +59,7 @@ This repository is configured with Dev Containers, allowing you to develop in a 
    - Docker Desktop installed and running
 
 2. Open the repository in VS Code:
+
    ```bash
    git clone https://github.com/joaquinrz/botify-lite.git
    cd botify-lite
@@ -88,22 +89,24 @@ The container will build with the same configuration as GitHub Codespaces.
 ### 3. Configure Environment Variables
 
 1. Create your environment file by copying the template:
+
    ```bash
    cp apps/credentials.env.template apps/credentials.env
    ```
 
 2. Update your `apps/credentials.env` file with the information from your deployment:
+
    ```bash
    # Azure OpenAI Settings
    AZURE_OPENAI_ENDPOINT=your_openAIServiceEndpoint_from_deployment_output
    AZURE_OPENAI_API_KEY=your_api_key_from_azure_portal
    AZURE_OPENAI_API_VERSION=2024-05-01-preview
    AZURE_OPENAI_MODEL_NAME=gpt-4o-mini
-   
+
    # Server Settings (for backend)
    SERVER_HOST=0.0.0.0
    SERVER_PORT=8000
-   
+
    # Client Settings (for CLI)
    API_BASE_URL=http://localhost:8000
    USE_STREAMING=true
@@ -111,6 +114,7 @@ The container will build with the same configuration as GitHub Codespaces.
    ```
 
 Replace:
+
 - `your_openAIServiceEndpoint_from_deployment_output` with the endpoint URL from the deployment outputs
 - `your_api_key_from_azure_portal` with the API key you copied from the Azure portal
 
@@ -125,7 +129,12 @@ The application uses an Azure OpenAI vector store to provide information to the 
 1. Make sure you have configured your environment variables in the previous step
 
 2. Run the vector store creation script:
+
    ```bash
+
+   # Install dependencies
+   poetry install
+
    # Run the script with Poetry
    poetry run python scripts/create_vector_store.py
    ```
@@ -137,6 +146,7 @@ The application uses an Azure OpenAI vector store to provide information to the 
    - Display the vector store ID when complete
 
 4. Copy the vector store ID from the script output and add it to your `apps/credentials.env` file:
+
    ```bash
    # Add this line to your credentials.env file
    AZURE_OPENAI_VECTOR_STORE_ID=your_vector_store_id
@@ -148,8 +158,8 @@ This step is essential for the assistant to access knowledge from the vector sto
 
 #### Prepare the Poetry virtual environment
 
-```bash 
-# Activate the virtual environment
+```bash
+# Install dependencies
 poetry install
 
 # Load environment variables
@@ -162,6 +172,9 @@ export $(grep -v '^#' apps/credentials.env | xargs) 2>/dev/null || true
 # Navigate to the server directory
 cd apps/botify_server
 
+# Install dependencies
+poetry install
+
 # Start the server
 poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -172,6 +185,9 @@ poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Navigate to the CLI directory
 cd apps/botify_cli
+
+# Install dependencies
+poetry install
 
 # Start the CLI
 poetry run python -m app.main
@@ -208,7 +224,9 @@ The CLI client provides an interactive terminal interface for chatting with the 
 ## Common Errors and Solutions
 
 ### Missing or Invalid Azure OpenAI Credentials
+
 If you see errors like `[Errno -2] Name or service not known` or `openai.APIConnectionError: Connection error`, this typically means that:
+
 1. Your Azure OpenAI endpoint URL is incorrect or empty
 2. Your API key is missing or invalid
 3. The specified model name doesn't exist in your Azure OpenAI resource
