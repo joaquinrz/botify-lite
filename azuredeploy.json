@@ -2,79 +2,54 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-      "location": {
-        "type": "string",
-        "defaultValue": "[resourceGroup().location]",
-        "metadata": {
-          "description": "The location for the Azure OpenAI resource. Note: Azure OpenAI is not available in all regions."
+        "accounts_open_ai_botify_name": {
+            "defaultValue": "open-ai-botify-lite",
+            "type": "String"
         }
-      },
-
-      "openAIServiceName": {
-        "type": "string",
-        "defaultValue": "[format('openai-service-{0}', uniqueString(resourceGroup().id))]"
-      },
-      "openAIModelName": {
-        "type": "string",
-        "defaultValue": "gpt-4o",
-        "allowedValues": [
-          "gpt-4o-mini"
-        ]
-      },
-    "openAIServiceEndpoint": {
-        "type": "string",
-        "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIServiceName'))).endpoint]"
-    }
     },
-    "variables": {
-      "appPlanSkuName": "S1",
-      "cognitiveServiceSKU": "S0"
-    },
+    "variables": {},
     "resources": [
         {
             "type": "Microsoft.CognitiveServices/accounts",
-            "apiVersion": "2023-05-01",
-            "name": "[parameters('openAIResourceName')]",
-            "location": "[parameters('location')]",
+            "apiVersion": "2024-10-01",
+            "name": "[parameters('accounts_open_ai_botify_name')]",
+            "location": "eastus",
             "sku": {
-                "name": "[parameters('sku')]"
+                "name": "S0"
             },
             "kind": "OpenAI",
             "properties": {
-                "customSubDomainName": "[toLower(parameters('openAIResourceName'))]",
+                "apiProperties": {},
+                "customSubDomainName": "[parameters('accounts_open_ai_botify_name')]",
+                "networkAcls": {
+                    "defaultAction": "Allow",
+                    "virtualNetworkRules": [],
+                    "ipRules": []
+                },
                 "publicNetworkAccess": "Enabled"
             }
         },
-
-    {
-      "type": "Microsoft.CognitiveServices/accounts/deployments",
-      "apiVersion": "2023-05-01",
-      "name": "[concat(parameters('openAIServiceName'), '/', parameters('openAIModelName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIServiceName'))]"
-      ],
-      "sku": {
+        {
+            "type": "Microsoft.CognitiveServices/accounts/deployments",
+            "apiVersion": "2024-10-01",
+            "name": "[concat(parameters('accounts_open_ai_botify_name'), '/gpt-4o-mini')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_open_ai_botify_name'))]"
+            ],
+            "sku": {
                 "name": "GlobalStandard",
-                "capacity": 100
+                "capacity": 490
             },
-      "properties": {
-        "model": {
-          "format": "OpenAI",
-          "name": "[parameters('openAIModelName')]",
-          "version": "2024-08-06"
+            "properties": {
+                "model": {
+                    "format": "OpenAI",
+                    "name": "gpt-4o-mini",
+                    "version": "2024-07-18"
+                },
+                "versionUpgradeOption": "OnceNewDefaultVersionAvailable",
+                "currentCapacity": 490,
+                "raiPolicyName": "Microsoft.DefaultV2"
+            }
         }
-      }
-    }
-    ],
-    "outputs": {
-      "openAIServiceEndpoint": {
-        "type": "string",
-        "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIServiceName'))).endpoint]"
-      },
-     "openAIModelName": {
-        "type": "string",
-        "value": "[parameters('openAIModelName')]"
-      }
-
-    }
-  }
+    ]
+}
