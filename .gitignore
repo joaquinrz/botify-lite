@@ -1,10 +1,10 @@
 # Environment variables & credentials
 *.env
 apps/credentials.env
-apps/botify-cli/credentials.env
-apps/botify-server/credentials.env
-apps/botify-server/.env
-apps/botify-cli/.env
+apps/botify_cli/credentials.env
+apps/botify_server/credentials.env
+apps/botify_server/.env
+apps/botify_cli/.env
 
 # Python cache files
 __pycache__/
@@ -54,7 +54,7 @@ coverage.xml
 
 # Chat history
 chat_history.txt
-apps/botify-cli/chat_history.txt
+apps/botify_cli/chat_history.txt
 
 # Jupyter Notebook
 .ipynb_checkpoints

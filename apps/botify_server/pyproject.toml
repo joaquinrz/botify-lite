@@ -1,17 +1,18 @@
 [tool.poetry]
-name = "botify-cli"
+name = "botify_server"
 version = "0.1.0"
-description = "CLI client for Botify Assistant interactions"
-authors = ["Your Name <your.email@example.com>"]
+description = "FastAPI server for Botify Assistant interactions"
+authors = ["Joaquin Rodriguez <rjoaquin@microsoft.com>"]
 readme = "README.md"
+packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-rich = "^14.0.0"
-requests = "^2.32.3"
-sseclient-py = "^1.8.0"
+fastapi = "^0.115.12"
+uvicorn = "^0.34.0"
 python-dotenv = "^1.1.0"
-typer = "^0.15.2"
+openai = "^1.72.0"
+sse-starlette = "^2.2.1"
 pydantic-settings = "^2.8.1"
 
 [tool.poetry.group.dev.dependencies]

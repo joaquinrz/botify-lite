@@ -7,8 +7,8 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
 ## Project Structure
 
 - `apps/`: Contains all application components
-  - `botify-server/`: Botify Assistant Server (FastAPI backend)
-  - `botify-cli/`: Botify CLI client
+  - `botify_server/`: Botify Assistant Server (FastAPI backend)
+  - `botify_cli/`: Botify CLI client
   - `credentials.env`: Environment variables configuration file
   - `credentials.env.template`: Template file for environment variables
 - `docker-compose.yml`: Docker Compose configuration for running both applications
@@ -34,51 +34,82 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
 - Docker and Docker Compose (optional, for containerized deployment)
 - Azure OpenAI service setup with proper credentials
 
-## Setup Instructions
+## Getting Started
 
-### 1. Configure Environment Variables
+### 1. Deploy to Azure
 
-This project requires proper Azure OpenAI credentials to function. Follow these steps:
+1. Click the "Deploy to Azure" button at the top of this README to start the deployment process.
+2. Complete the Azure deployment form with your preferred settings.
+3. After the deployment completes, check the outputs section of the deployment for:
+   - `openAIServiceEndpoint`: The endpoint URL for your Azure OpenAI service
 
-1. Copy the credentials template file to create your environment file:
+### 2. Get Your API Key
+
+1. Navigate to your newly deployed Azure OpenAI resource in the Azure portal
+2. Go to "Keys and Endpoint" in the left menu
+3. Copy one of the available keys (either KEY 1 or KEY 2)
+
+### 3. Configure Environment Variables
+
+1. Create your environment file by copying the template:
    ```bash
    cp apps/credentials.env.template apps/credentials.env
    ```
 
-2. Edit the `apps/credentials.env` file with your actual Azure OpenAI credentials:
-   - Get your Azure OpenAI endpoint from your Azure portal (typically https://[resource-name].openai.azure.com/)
-   - Obtain your API key from the Azure OpenAI service
-   - Specify your deployed model name (e.g., gpt-4o-mini)
-   - Add your vector store ID if you're using the RAG (Retrieval Augmented Generation) capabilities
+2. Update your `apps/credentials.env` file with the information from your deployment:
+   ```bash
+   # Azure OpenAI Settings
+   AZURE_OPENAI_ENDPOINT=your_openAIServiceEndpoint_from_deployment_output
+   AZURE_OPENAI_API_KEY=your_api_key_from_azure_portal
+   AZURE_OPENAI_API_VERSION=2024-05-01-preview
+   AZURE_OPENAI_MODEL_NAME=gpt-4o-mini
+   
+   # Server Settings (for backend)
+   SERVER_HOST=0.0.0.0
+   SERVER_PORT=8000
+   
+   # Client Settings (for CLI)
+   API_BASE_URL=http://localhost:8000
+   USE_STREAMING=true
+   CHAT_HISTORY_FILE=./chat_history.txt
+   ```
 
-If you don't have an Azure OpenAI account yet, you'll need to:
-1. Create an Azure account at [portal.azure.com](https://portal.azure.com)
-2. Create an Azure OpenAI service resource
-3. Deploy a model through the Azure OpenAI Studio
-4. Generate an API key
+Replace:
+- `your_openAIServiceEndpoint_from_deployment_output` with the endpoint URL from the deployment outputs
+- `your_api_key_from_azure_portal` with the API key you copied from the Azure portal
+
+The model name should already be correctly set to "gpt-4o-mini" as specified in the deployment template.
 
 Without valid credentials, the application will display connection errors when attempting to interact with the AI service.
 
-Example of a properly configured `apps/credentials.env` file:
-```bash
-# Azure OpenAI Settings
-AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
-AZURE_OPENAI_API_KEY=your-api-key-here
-AZURE_OPENAI_API_VERSION=2024-05-01-preview
-AZURE_OPENAI_MODEL_NAME=gpt-4o-mini
-AZURE_OPENAI_VECTOR_STORE_ID=your-vector-store-id
+### 4. Create and Configure Vector Store
 
-# Server Settings (for backend)
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8000
+The application uses an Azure OpenAI vector store to provide information to the assistant. Follow these steps to create and configure your vector store:
 
-# Client Settings (for CLI)
-API_BASE_URL=http://localhost:8000
-USE_STREAMING=true
-CHAT_HISTORY_FILE=./chat_history.txt
-```
+1. Make sure you have configured your environment variables in the previous step
 
-### 2. Local Development Setup
+2. Run the vector store creation script:
+   ```bash
+   
+   # Run the script with Poetry
+   poetry run python scripts/create_vector_store.py
+   ```
+
+3. The script will:
+   - Locate all JSON files in the `data/` directory
+   - Create a new vector store in your Azure OpenAI service
+   - Upload all JSON files to the vector store
+   - Display the vector store ID when complete
+
+4. Copy the vector store ID from the script output and add it to your `apps/credentials.env` file:
+   ```bash
+   # Add this line to your credentials.env file
+   AZURE_OPENAI_VECTOR_STORE_ID=your_vector_store_id
+   ```
+
+This step is essential for the assistant to access knowledge from the vector store.
+
+### 5. Local Development Setup
 
 If you want to run the applications locally for development:
 
@@ -86,7 +117,7 @@ If you want to run the applications locally for development:
 
 ```bash
 # Navigate to backend directory
-cd apps/botify-server
+cd apps/botify_server
 
 # Install dependencies
 poetry install
@@ -99,7 +130,7 @@ poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ```bash
 # Navigate to CLI directory
-cd apps/botify-cli
+cd apps/botify_cli
 
 # Install dependencies
 poetry install
@@ -108,7 +139,7 @@ poetry install
 poetry run python -m app.main
 ```
 
-### 3. Docker Setup
+### 5. Docker Setup
 
 For a containerized setup using Docker Compose:
 
@@ -120,7 +151,7 @@ docker-compose up --build
 docker-compose up -d
 
 # Access the CLI client in a running container
-docker exec -it botify-cli python -m app.main
+docker exec -it botify_cli python -m app.main
 ```
 
 ## Using the CLI Chat Client
@@ -156,14 +187,14 @@ python -m app.main --history ./custom_history.txt
 ### Backend Tests
 
 ```bash
-cd apps/botify-server
+cd apps/botify_server
 poetry run pytest
 ```
 
 ### CLI Tests
 
 ```bash
-cd apps/botify-cli
+cd apps/botify_cli
 poetry run pytest
 ```
 
