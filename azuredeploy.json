@@ -7,8 +7,22 @@
             "type": "String"
         }
     },
-    "variables": {},
+    "contentSafetyServiceName": {
+        "type": "string",
+        "defaultValue": "[format('content-safety-{0}', uniqueString(resourceGroup().id))]"
+    },
     "resources": [
+        {
+            "type": "Microsoft.CognitiveServices/accounts",
+            "apiVersion": "2023-05-01",
+            "name": "[parameters('contentSafetyServiceName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+              "name": "S0"
+            },
+            "kind": "ContentSafety",
+            "properties": {}
+          },
         {
             "type": "Microsoft.CognitiveServices/accounts",
             "apiVersion": "2024-10-01",
@@ -53,6 +67,14 @@
         }
     ],
     "outputs": {
+      "contentSafetyServiceName": {
+        "type": "string",
+        "value": "[parameters('contentSafetyServiceName')]"
+      },
+      "contentSafetyServiceEndpoint": {
+        "type": "string",
+        "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('contentSafetyServiceName'))).endpoint]"
+      },
       "openAIServiceEndpoint": {
         "type": "string",
         "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_open_ai_botify_name'))).endpoint]"
