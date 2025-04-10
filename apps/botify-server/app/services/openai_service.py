@@ -287,7 +287,7 @@ class AzureOpenAIService:
             }
     
     async def get_chat_response_stream(self, message: str, session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
-        """Get a streaming chat response with typewriter effect."""
+        """Get a streaming chat response with word by word streaming."""
         try:
             logger.info(f"Processing streaming chat request with message: '{message[:20]}...' and session ID: {session_id}")
             start_time = asyncio.get_event_loop().time()
@@ -313,6 +313,7 @@ class AzureOpenAIService:
             poll_count = 0
             content_updates = 0
             assistant_message_id = None
+            current_word_buffer = ""
             
             # Wait for the run to complete while streaming
             while run.status in ["queued", "in_progress", "cancelling"]:
@@ -338,10 +339,17 @@ class AzureOpenAIService:
                                             new_text = current_content[last_content_length:]
                                             last_content_length = len(current_content)
                                             
-                                            # Stream character by character
+                                            # Process the new text and stream word by word
                                             for char in new_text:
-                                                yield char
-                                                await asyncio.sleep(0.01)
+                                                current_word_buffer += char
+                                                # When we hit a space or punctuation followed by space, yield the word
+                                                if char == ' ' or char in ['.', ',', '!', '?', ':', ';'] and current_word_buffer.strip():
+                                                    yield current_word_buffer
+                                                    current_word_buffer = ""
+                                                    await asyncio.sleep(0.05)  # Slightly longer pause between words
+                                            
+                                            # If there's anything left in the buffer at the end of new text,
+                                            # keep it for the next iteration
                                     except (AttributeError, IndexError) as e:
                                         logger.error(f"Error processing streaming content: {str(e)}")
                                     break
@@ -371,9 +379,18 @@ class AzureOpenAIService:
                         # Send any remaining content
                         remaining = final_content[last_content_length:]
                         if remaining:
+                            # Process any remaining text
                             for char in remaining:
-                                yield char
-                                await asyncio.sleep(0.01)
+                                current_word_buffer += char
+                                # When we hit a space or punctuation followed by space, yield the word
+                                if char == ' ' or char in ['.', ',', '!', '?', ':', ';'] and current_word_buffer.strip():
+                                    yield current_word_buffer
+                                    current_word_buffer = ""
+                                    await asyncio.sleep(0.05)
+                            
+                            # Yield any final content in the buffer
+                            if current_word_buffer:
+                                yield current_word_buffer
                     except (AttributeError, IndexError) as e:
                         logger.error(f"Error processing final streaming content: {str(e)}")
             else:
@@ -383,9 +400,19 @@ class AzureOpenAIService:
                     "displayResponse": f"Error: Run completed with status '{run.status}'"
                 })
                 logger.error(f"Stream failed with status: {run.status}")
+                
+                # Stream the error message word by word for consistency
+                word_buffer = ""
                 for char in error_json:
-                    yield char
-                    await asyncio.sleep(0.01)
+                    word_buffer += char
+                    if char == ' ':
+                        yield word_buffer
+                        word_buffer = ""
+                        await asyncio.sleep(0.05)
+                
+                # Yield any remaining text
+                if word_buffer:
+                    yield word_buffer
                 
             total_duration = asyncio.get_event_loop().time() - start_time
             logger.info(f"Total streaming request took {total_duration:.2f} seconds")
@@ -397,9 +424,20 @@ class AzureOpenAIService:
                 "voiceSummary": "Configuration Error",
                 "displayResponse": f"Azure OpenAI Configuration Error: {str(e)}"
             })
+            
+            # Stream the error message word by word
+            word_buffer = ""
             for char in error_json:
-                yield char
-                await asyncio.sleep(0.01)
+                word_buffer += char
+                if char == ' ':
+                    yield word_buffer
+                    word_buffer = ""
+                    await asyncio.sleep(0.05)
+            
+            # Yield any final word
+            if word_buffer:
+                yield word_buffer
+                
         except Exception as e:
             # For other errors
             logger.error(f"Unexpected error in streaming: {str(e)}", exc_info=True)
@@ -407,9 +445,19 @@ class AzureOpenAIService:
                 "voiceSummary": "Error processing request",
                 "displayResponse": f"Error processing request: {str(e)}"
             })
+            
+            # Stream the error message word by word
+            word_buffer = ""
             for char in error_json:
-                yield char
-                await asyncio.sleep(0.01)
+                word_buffer += char
+                if char == ' ':
+                    yield word_buffer
+                    word_buffer = ""
+                    await asyncio.sleep(0.05)
+            
+            # Yield any final word
+            if word_buffer:
+                yield word_buffer
                 
     async def cleanup_session(self, session_id: str) -> bool:
         """Cleanup resources associated with a session."""
