@@ -100,7 +100,6 @@
         "extensions": [
           // General development tools
           "visualstudioexptteam.vscodeintellicode",
-          "eamodio.gitlens",
           "github.copilot",
           
           // API development
@@ -111,9 +110,6 @@
           
           // Documentation
           "davidanson.vscode-markdownlint",
-          
-          // CI/CD
-          "github.vscode-github-actions",
           
           // Python development
           "ms-python.python",

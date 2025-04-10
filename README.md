@@ -3,6 +3,7 @@
 A complete solution for interacting with Azure OpenAI, consisting of a FastAPI backend server and a CLI chat client application.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fjoaquinrz%2Fbotify-lite%2Fmain%2Fazuredeploy.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/joaquinrz/botify-lite)
 
 ## Project Structure
 
@@ -33,6 +34,41 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
 - Poetry for dependency management
 - Docker and Docker Compose (optional, for containerized deployment)
 - Azure OpenAI service setup with proper credentials
+
+## Development Environments
+
+### GitHub Codespaces / Dev Containers
+
+This repository is configured with Dev Containers, allowing you to develop in a consistent environment either through GitHub Codespaces or locally using VS Code with the Dev Containers extension.
+
+#### Using GitHub Codespaces (Cloud-based)
+
+1. Click the "Open in GitHub Codespaces" button at the top of this README
+2. GitHub will create and launch a Codespace with all dependencies pre-installed
+3. Wait for the container to finish building (this may take a few minutes on first launch)
+4. Once loaded, the development environment will include:
+   - Python 3.13 and Poetry for dependency management
+   - Pre-configured VS Code extensions for Python development
+   - Zsh with helpful plugins and git customizations
+   - Azure CLI and Docker-in-Docker support
+
+#### Using Dev Containers Locally
+
+1. Prerequisites:
+   - Visual Studio Code with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+   - Docker Desktop installed and running
+
+2. Open the repository in VS Code:
+   ```bash
+   git clone https://github.com/joaquinrz/botify-lite.git
+   cd botify-lite
+   code .
+   ```
+
+3. When prompted, click "Reopen in Container", or:
+   - Press F1 and select "Dev Containers: Reopen in Container"
+
+The container will build with the same configuration as GitHub Codespaces.
 
 ## Getting Started
 
