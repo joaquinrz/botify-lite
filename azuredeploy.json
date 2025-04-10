@@ -51,5 +51,15 @@
                 "raiPolicyName": "Microsoft.DefaultV2"
             }
         }
-    ]
+    ],
+    "outputs": {
+      "openAIServiceEndpoint": {
+        "type": "string",
+        "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIServiceName'))).endpoint]"
+      },
+     "openAIModelName": {
+        "type": "string",
+        "value": "[parameters('openAIModelName')]"
+      }
+    }
 }
