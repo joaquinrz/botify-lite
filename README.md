@@ -141,8 +141,6 @@ cd apps/botify_cli
 poetry run python -m app.main
 ```
 
-
-
 ### 6. Running the Applications using Docker
 
 For a containerized setup using Docker Compose:
@@ -170,68 +168,6 @@ The CLI client provides an interactive terminal interface for chatting with the 
 - `/stream on` or `/stream off`: Toggle streaming mode
 - `/exit` or `/quit`: Exit the application
 
-### Command-line Options
-
-The CLI client accepts the following command-line options:
-
-```bash
-# Run with a custom server URL
-python -m app.main --server http://custom-server:8000
-
-# Explicitly enable or disable streaming
-python -m app.main --stream  # Enable streaming
-python -m app.main --no-stream  # Disable streaming
-
-# Specify a custom history file location
-python -m app.main --history ./custom_history.txt
-```
-
-## Running Tests
-
-### Backend Tests
-
-```bash
-cd apps/botify_server
-poetry run pytest
-```
-
-### CLI Tests
-
-```bash
-cd apps/botify_cli
-poetry run pytest
-```
-
-## API Endpoints
-
-The backend API exposes the following endpoints:
-
-- `GET /`: Root endpoint (health check)
-- `GET /health`: Health check endpoint
-- `POST /api/chat`: Non-streaming chat endpoint
-- `POST /api/chat/stream`: Streaming chat endpoint using Server-Sent Events (SSE)
-
-## Architecture
-
-This project follows a client-server architecture:
-
-1. The **Botify Assistant Server** (FastAPI backend):
-   - Manages communication with Azure OpenAI
-   - Handles both streaming and non-streaming requests
-   - Provides a RESTful API for clients to consume
-
-2. The **Botify CLI Client**:
-   - Provides a user-friendly terminal interface
-   - Communicates with the backend server via HTTP
-   - Manages local chat history
-   - Supports both streaming and non-streaming modes
-
-## Troubleshooting
-
-- **Connection issues**: Ensure the backend server is running and accessible from the CLI client
-- **Authentication errors**: Verify your Azure OpenAI credentials in the `apps/credentials.env` file
-- **Docker networking problems**: Make sure Docker containers can communicate with each other
-- **Missing credentials error**: If you see connection errors when running the application, make sure you have properly filled out the `apps/credentials.env` file with valid Azure OpenAI credentials.
 
 ## Common Errors and Solutions
 
