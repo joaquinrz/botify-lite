@@ -1,0 +1,128 @@
+{
+    "name": "Botify Lite",
+    "image": "mcr.microsoft.com/devcontainers/python:3.13-bookworm",
+    // Container features to install
+    "features": {
+      // Cloud deployment tools
+      "ghcr.io/devcontainers/features/azure-cli:1": {},
+      // Container development support
+      "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+      // Python dependency management
+      "ghcr.io/devcontainers-contrib/features/poetry:latest": {},
+      // Shell enhancements
+      "ghcr.io/devcontainers-contrib/features/zsh-plugins:0": {
+        "plugins": "python poetry gitfast git-extras command-not-found colorize colored-man-pages"
+      },
+      // Text editor
+      "ghcr.io/devcontainers-contrib/features/neovim-apt-get:1": {}
+    },
+    "forwardPorts": [
+      8000 // Botify Server
+    ],
+    // labels for forwarded ports
+    "portsAttributes": {
+      "8000": {
+        "label": "Botify Server"
+      }
+    },
+    // set container specific settings
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "[markdown]": {
+            "editor.formatOnSave": true,
+            "editor.formatOnSaveMode": "modificationsIfAvailable"
+          },
+          "files.associations": {
+            "*.env": "plaintext"
+          },
+          "markdownlint.lintWorkspaceGlobs": [
+            "!**/.git",
+            "!**/.github/",
+            "!CHANGELOG.md",
+            "!CONTRIBUTING.md",
+            "!LICENSE"
+          ],
+          "terminal.integrated.defaultProfile.linux": "zsh",
+          "editor.inlineSuggest.enabled": true,
+          "editor.copyWithSyntaxHighlighting": false,
+          "editor.wordWrap": "on",
+          "editor.linkedEditing": true,
+          "editor.renderWhitespace": "selection",
+          "editor.renderControlCharacters": true,
+          "editor.rulers": [
+            79,
+            118
+          ],
+          "search.exclude": {
+            "**/node_modules": true,
+            "**/bower_components": true,
+            "**/env": true,
+            "**/venv": true,
+            "**/.env": true,
+            "**/.venv": true,
+            "**/.pytest_cache*": true,
+            "**/__pycache__": true,
+            "**/.mypy_cache": true
+          },
+          "files.exclude": {
+            "**/env": true,
+            "**/venv": true,
+            "**/.env": true,
+            "**/.venv": true,
+            "**/.pytest_cache*": true,
+            "**/.mypy_cache": true,
+            "**/__pycache__": true
+          },
+          "editor.guides.highlightActiveIndentation": true,
+          "editor.guides.highlightActiveBracketPair": true,
+          "editor.bracketPairColorization.enabled": true,
+          "editor.guides.bracketPairs": "active",
+          "files.trimTrailingWhitespace": true,
+          "files.trimFinalNewlines": true,
+          "files.insertFinalNewline": true,
+          "shellcheck.enable": true,
+          "shellcheck.enableQuickFix": true,
+          "shellcheck.ignoreFileSchemes": [
+            "git",
+            "gitfs",
+            "output",
+            "test"
+          ],
+          "[jsonc]": {
+            "editor.defaultFormatter": "vscode.json-language-features"
+          },
+          "[python]": {
+            "editor.defaultFormatter": "ms-python.black-formatter"
+          }
+        },
+        // Install extensions
+        "extensions": [
+          // General development tools
+          "visualstudioexptteam.vscodeintellicode",
+          "eamodio.gitlens",
+          "github.copilot",
+          
+          // API development
+          "humao.rest-client",
+          
+          // Configuration languages
+          "redhat.vscode-yaml",
+          
+          // Documentation
+          "davidanson.vscode-markdownlint",
+          
+          // CI/CD
+          "github.vscode-github-actions",
+          
+          // Python development
+          "ms-python.python",
+          "ms-python.debugpy",
+          "kevinrose.vsc-python-indent",
+          "ms-python.black-formatter"
+        ]
+      }
+    },
+    // Run Bash scripts
+    "onCreateCommand": "/bin/bash ./.devcontainer/on-create.bash"
+  }
