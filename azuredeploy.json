@@ -48,7 +48,7 @@
     "resources": [
         {
             "type": "Microsoft.CognitiveServices/accounts",
-            "apiVersion": "2023-10-01-preview",
+            "apiVersion": "2023-05-01",
             "name": "[parameters('openAIResourceName')]",
             "location": "[parameters('location')]",
             "sku": {
@@ -62,19 +62,20 @@
         },
         {
             "type": "Microsoft.CognitiveServices/accounts/deployments",
-            "apiVersion": "2023-10-01-preview",
+            "apiVersion": "2023-05-01",
             "name": "[concat(parameters('openAIResourceName'), '/', parameters('deploymentName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIResourceName'))]"
             ],
+            "sku": {
+                "name": "GlobalStandard",
+                "capacity": 100
+            },
             "properties": {
                 "model": {
                     "format": "OpenAI",
                     "name": "gpt-4o-mini",
-                    "version": "1106"
-                },
-                "scaleSettings": {
-                    "scaleType": "Standard"
+                    "version": "2024-08-06"
                 }
             }
         }
