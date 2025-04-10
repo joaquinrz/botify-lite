@@ -55,11 +55,11 @@
     "outputs": {
       "openAIServiceEndpoint": {
         "type": "string",
-        "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIServiceName'))).endpoint]"
+        "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_open_ai_botify_name'))).endpoint]"
       },
      "openAIModelName": {
         "type": "string",
-        "value": "[parameters('openAIModelName')]"
+        "value": "gpt-4o-mini"
       }
     }
 }
