@@ -1,5 +1,5 @@
 import os
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv, find_dotenv
 
@@ -45,8 +45,7 @@ class Settings(BaseSettings):
         description="Server port number"
     )
     
-    class Config:
-        case_sensitive = False
+    model_config = ConfigDict(case_sensitive=False)
 
 
 # Create instance of settings to be used throughout the application
