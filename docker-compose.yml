@@ -1,0 +1,36 @@
+services:
+  botify-server:
+    build: ./apps/botify-server
+    container_name: botify-server
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./apps/credentials.env
+    volumes:
+      - ./apps/botify-server:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  botify-cli:
+    build: ./apps/botify-cli
+    container_name: botify-cli
+    env_file:
+      - ./apps/credentials.env
+    volumes:
+      - ./apps/botify-cli:/app
+      - ./apps/chat_history:/app/chat_history
+    environment:
+      - API_BASE_URL=http://botify-server:8000
+    depends_on:
+      - botify-server
+    # Interactive mode
+    stdin_open: true
+    tty: true
+
+volumes:
+  chat_history:
+    driver: local

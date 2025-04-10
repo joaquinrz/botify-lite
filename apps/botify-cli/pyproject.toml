@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "botify-cli"
+version = "0.1.0"
+description = "CLI client for Botify Assistant interactions"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+rich = "^14.0.0"
+requests = "^2.32.3"
+sseclient-py = "^1.8.0"
+python-dotenv = "^1.1.0"
+typer = "^0.15.2"
+pydantic-settings = "^2.8.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-cov = "^6.1.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "botify-server"
+version = "0.1.0"
+description = "FastAPI server for Botify Assistant interactions"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.115.12"
+uvicorn = "^0.34.0"
+python-dotenv = "^1.1.0"
+openai = "^1.72.0"
+sse-starlette = "^2.2.1"
+pydantic-settings = "^2.8.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-cov = "^6.1.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
