@@ -90,7 +90,6 @@ The application uses an Azure OpenAI vector store to provide information to the 
 
 2. Run the vector store creation script:
    ```bash
-   
    # Run the script with Poetry
    poetry run python scripts/create_vector_store.py
    ```
@@ -109,37 +108,42 @@ The application uses an Azure OpenAI vector store to provide information to the 
 
 This step is essential for the assistant to access knowledge from the vector store.
 
-### 5. Local Development Setup
+### 5. Running the Applications using Poetry
 
-If you want to run the applications locally for development:
+#### Prepare the Poetry virtual environment
 
-#### Backend Setup
-
-```bash
-# Navigate to backend directory
-cd apps/botify_server
-
-# Install dependencies
+```bash 
+# Activate the virtual environment
 poetry install
 
-# Run the backend server
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Load environment variables
+export $(grep -v '^#' apps/credentials.env | xargs) 2>/dev/null || true
 ```
 
-#### CLI Client Setup
+#### Run the Server Application
 
 ```bash
-# Navigate to CLI directory
+# Navigate to the server directory
+cd apps/botify_server
+
+# Start the server
+poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### Run the CLI Application in a new terminal
+
+```bash
+
+# Navigate to the CLI directory
 cd apps/botify_cli
 
-# Install dependencies
-poetry install
-
-# Run the CLI client
+# Start the CLI
 poetry run python -m app.main
 ```
 
-### 5. Docker Setup
+
+
+### 6. Running the Applications using Docker
 
 For a containerized setup using Docker Compose:
 
