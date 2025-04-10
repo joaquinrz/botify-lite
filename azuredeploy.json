@@ -1,0 +1,92 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "openAIResourceName": {
+            "type": "string",
+            "defaultValue": "[concat('openai-', uniqueString(resourceGroup().id))]",
+            "metadata": {
+                "description": "The name of the Azure OpenAI resource."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "East US",
+            "allowedValues": [
+                "East US",
+                "South Central US",
+                "UK South",
+                "West Europe",
+                "North Central US"
+            ],
+            "metadata": {
+                "description": "The location for the Azure OpenAI resource. Note: Azure OpenAI is not available in all regions."
+            }
+        },
+        "deploymentName": {
+            "type": "string",
+            "defaultValue": "gpt-4o-mini",
+            "metadata": {
+                "description": "Name of the GPT-4o-mini model deployment."
+            }
+        },
+        "sku": {
+            "type": "string",
+            "defaultValue": "S0",
+            "metadata": {
+                "description": "SKU for the Azure OpenAI resource."
+            }
+        },
+        "vectorStoreId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "ID for the Vector Store (optional)."
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.CognitiveServices/accounts",
+            "apiVersion": "2023-10-01-preview",
+            "name": "[parameters('openAIResourceName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "[parameters('sku')]"
+            },
+            "kind": "OpenAI",
+            "properties": {
+                "customSubDomainName": "[toLower(parameters('openAIResourceName'))]",
+                "publicNetworkAccess": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.CognitiveServices/accounts/deployments",
+            "apiVersion": "2023-10-01-preview",
+            "name": "[concat(parameters('openAIResourceName'), '/', parameters('deploymentName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIResourceName'))]"
+            ],
+            "properties": {
+                "model": {
+                    "format": "OpenAI",
+                    "name": "gpt-4o-mini",
+                    "version": "1106"
+                },
+                "scaleSettings": {
+                    "scaleType": "Standard"
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "openAIEndpoint": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIResourceName'))).endpoint]"
+        },
+        "openAIKey": {
+            "type": "string",
+            "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIResourceName')), '2023-10-01-preview').key1]"
+        }
+    }
+}

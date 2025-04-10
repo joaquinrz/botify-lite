@@ -2,6 +2,8 @@
 
 A complete solution for interacting with Azure OpenAI, consisting of a FastAPI backend server and a CLI chat client application.
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fjoaquinrz%2Fbotify-lite%2Fmain%2Fazuredeploy.json)
+
 ## Project Structure
 
 - `apps/`: Contains all application components
