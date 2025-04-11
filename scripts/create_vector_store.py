@@ -10,7 +10,7 @@ which should be added to your credentials.env file.
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime
 
 # Add the project root to Python path so we can import from the apps directory
@@ -65,6 +65,21 @@ def get_json_files(data_dir: Path) -> List[Path]:
     print(f"Found {len(json_files)} JSON files in the data directory")
     return json_files
 
+def get_vector_store_name(timestamp: str) -> str:
+    """Prompt user for a vector store name, with fallback to timestamp-based naming"""
+    default_name = f"Botify_Knowledge_Base_{timestamp}"
+    
+    print("\nPlease enter a name for your vector store:")
+    print(f"(Press Enter to use the default: '{default_name}')")
+    
+    user_input = input("Vector store name: ").strip()
+    
+    if user_input:
+        return user_input
+    else:
+        print(f"Using default name: {default_name}")
+        return default_name
+
 def main() -> None:
     """Main function to create vector store and load data"""
     # Load and validate environment variables
@@ -87,7 +102,7 @@ def main() -> None:
     
     # Create vector store name with timestamp for uniqueness
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    vector_store_name = f"Botify_Knowledge_Base_{timestamp}"
+    vector_store_name = get_vector_store_name(timestamp)
     
     try:
         # Create vector store
