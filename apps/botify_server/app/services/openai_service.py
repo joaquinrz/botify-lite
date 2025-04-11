@@ -401,17 +401,29 @@ class AzureOpenAIService:
             text: Text content to stream
             
         Yields:
-            Words or word fragments with punctuation
+            Words or word fragments with punctuation, including JSON structural elements
         """
-        # Split text by spaces but keep punctuation attached to words
+        # For JSON responses, we need to handle both words and JSON structural elements
+        # JSON structural elements: {, }, [, ], :, ", ,
+        json_special_chars = {'{', '}', '[', ']', ':', '"', ','}
+        
         words = []
         current_word = ""
         
         for char in text:
-            if char == ' ':
+            # If we encounter a JSON special character, we should yield what we have so far
+            # and then yield the special character as a separate token
+            if char in json_special_chars:
                 if current_word:
                     words.append(current_word)
                     current_word = ""
+                words.append(char)
+            # If we encounter a space, yield the current word if we have one
+            elif char == ' ':
+                if current_word:
+                    words.append(current_word)
+                    current_word = ""
+                words.append(char)  # Also yield spaces for proper formatting
             else:
                 current_word += char
         
@@ -419,10 +431,9 @@ class AzureOpenAIService:
         if current_word:
             words.append(current_word)
         
-        # Yield each word with a small delay
+        # Yield each token with a minimal delay for fast streaming
         for word in words:
             yield word
-            await asyncio.sleep(0.05)  # Consistent pause between words
     
     async def _setup_thread_for_chat(self, message: str, session_id: Optional[str] = None) -> Tuple[Any, Any, set]:
         """
