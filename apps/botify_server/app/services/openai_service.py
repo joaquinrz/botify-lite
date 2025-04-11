@@ -434,6 +434,7 @@ class AzureOpenAIService:
         # Yield each token with a minimal delay for fast streaming
         for word in words:
             yield word
+            await asyncio.sleep(0.001)
     
     async def _setup_thread_for_chat(self, message: str, session_id: Optional[str] = None) -> Tuple[Any, Any, set]:
         """

@@ -156,11 +156,10 @@ class ChatTerminal:
             # Calculate elapsed time
             elapsed_time = time.time() - start_time
             
-            # Display the response
-            formatted_response = self.format_response(response)
-            self.console.print(Panel(Markdown(formatted_response), 
-                                    title="Assistant", 
-                                    border_style="blue"))
+            # Display the raw response JSON
+            self.console.print("[blue]Assistant:[/blue]")
+            raw_response = json.dumps(response, indent=2)
+            self.console.print(raw_response, highlight=False)
             
             # Display elapsed time
             self.console.print(f"[dim italic]Response time: {elapsed_time:.2f} seconds[/dim italic]")
@@ -172,7 +171,7 @@ class ChatTerminal:
             self.console.print(f"[bold red]Error:[/bold red] {str(e)}")
     
     def chat_streaming(self, message: str) -> None:
-        """Handle streaming chat interaction with typewriter effect.
+        """Handle streaming chat interaction by displaying raw tokens directly.
         
         Args:
             message: The user message to send.
@@ -182,17 +181,16 @@ class ChatTerminal:
             start_time = time.time()
             
             # Initialize buffer for accumulated response for history
-            self.streaming_buffer = ""
             accumulated_raw_text = ""
             
             # Start response display
             self.console.print("[blue]Assistant (streaming):[/blue]")
             
-            # Process the stream and display chunks immediately for typewriter effect
+            # Process the stream and display chunks immediately exactly as received
             try:
-                # Print characters directly instead of using Live display for more immediate feedback
+                # Print characters directly without any processing
                 for chunk in api_client.chat_stream(message):
-                    # Print the chunk immediately as it arrives (typewriter effect)
+                    # Print the chunk exactly as it arrives from backend
                     self.console.print(chunk, end="", highlight=False)
                     # Also accumulate for history
                     accumulated_raw_text += chunk
@@ -207,19 +205,14 @@ class ChatTerminal:
             except Exception as e:
                 self.console.print(f"\n[bold red]Error during streaming:[/bold red] {str(e)}")
             
-            # After streaming completes, save to history
+            # After streaming completes, save to history - using raw unprocessed text
             try:
-                # Try to parse the accumulated response as JSON if possible
-                try:
-                    parsed_json = json.loads(accumulated_raw_text)
-                    history_manager.save_conversation(message, parsed_json)
-                except json.JSONDecodeError:
-                    # If it's not valid JSON, save the raw text
-                    history_response = {
-                        "voiceSummary": accumulated_raw_text[:100] + ("..." if len(accumulated_raw_text) > 100 else ""),
-                        "displayResponse": accumulated_raw_text
-                    }
-                    history_manager.save_conversation(message, history_response)
+                # Just save the raw text without parsing
+                history_response = {
+                    "voiceSummary": accumulated_raw_text[:100] + ("..." if len(accumulated_raw_text) > 100 else ""),
+                    "displayResponse": accumulated_raw_text
+                }
+                history_manager.save_conversation(message, history_response)
                     
             except Exception as e:
                 self.console.print(f"[bold red]Error saving to history:[/bold red] {str(e)}")
