@@ -5,11 +5,15 @@
         "accounts_open_ai_botify_name": {
             "defaultValue": "open-ai-botify-lite",
             "type": "String"
+        },
+        "contentSafetyServiceName": {
+            "type": "string",
+            "defaultValue": "[format('content-safety-{0}', uniqueString(resourceGroup().id))]"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "eastus"
         }
-    },
-    "contentSafetyServiceName": {
-        "type": "string",
-        "defaultValue": "[format('content-safety-{0}', uniqueString(resourceGroup().id))]"
     },
     "resources": [
         {
@@ -22,12 +26,12 @@
             },
             "kind": "ContentSafety",
             "properties": {}
-          },
+        },
         {
             "type": "Microsoft.CognitiveServices/accounts",
             "apiVersion": "2024-10-01",
             "name": "[parameters('accounts_open_ai_botify_name')]",
-            "location": "eastus",
+            "location": "[parameters('location')]",
             "sku": {
                 "name": "S0"
             },
