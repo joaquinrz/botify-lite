@@ -2,15 +2,13 @@ import json
 import asyncio
 import os
 import logging
-from typing import AsyncGenerator, Dict, Any, Optional, List, Union
+from typing import AsyncGenerator, Dict, Any, Optional, List, Union, Tuple
 
 from openai import AsyncAzureOpenAI
-from sse_starlette.sse import EventSourceResponse
 
 from ..core.config import settings
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -19,8 +17,21 @@ class AzureOpenAIService:
     
     def __init__(self):
         """Initialize the Azure OpenAI client with settings from config."""
-        # Validate required settings
-        self._validate_settings()
+        # Validate settings using centralized validation
+        validation_result = settings.validate_service_config("openai")
+        if not validation_result["configured"]:
+            missing = ", ".join(validation_result["missing"])
+            raise ValueError(
+                f"Missing required OpenAI settings: {missing}. "
+                f"Please update your credentials.env file with the required values."
+            )
+            
+        # Vector store is also required for this service
+        vector_store_validation = settings.validate_service_config("vector_store")
+        if not vector_store_validation["configured"]:
+            raise ValueError(
+                "Missing vector store ID. Please set AZURE_OPENAI_VECTOR_STORE_ID in your credentials.env file."
+            )
         
         # Initialize client if validation passes
         self.client = AsyncAzureOpenAI(
@@ -38,27 +49,6 @@ class AzureOpenAIService:
         self.sessions = {}
         # Store assistants by thread IDs
         self.assistants = {}
-    
-    def _validate_settings(self) -> None:
-        """Validate the required Azure OpenAI settings."""
-        missing_settings = []
-        
-        required_settings = {
-            "AZURE_OPENAI_ENDPOINT": settings.azure_openai_endpoint,
-            "AZURE_OPENAI_API_KEY": settings.azure_openai_api_key,
-            "AZURE_OPENAI_MODEL_NAME": settings.model_name,
-            "AZURE_OPENAI_VECTOR_STORE_ID": settings.vector_store_id
-        }
-        
-        for name, value in required_settings.items():
-            if not value:
-                missing_settings.append(name)
-        
-        if missing_settings:
-            raise ValueError(
-                f"Missing required Azure OpenAI settings: {', '.join(missing_settings)}. "
-                f"Please update your credentials.env file with the required values."
-            )
     
     def _load_instructions(self) -> str:
         """Load the assistant instructions from the prompt file."""
@@ -231,21 +221,11 @@ class AzureOpenAIService:
     async def get_chat_response(self, message: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Get a chat response for a message (non-streaming)."""
         try:
-            logger.info(f"Processing chat request with message: '{message[:20]}...' and session ID: {session_id}")
+            logger.info(f"Processing chat request: '{message[:20]}...' (session: {session_id})")
             start_time = asyncio.get_event_loop().time()
             
-            # Get or create thread for this session
-            thread = await self.get_or_create_thread(session_id)
-            
-            # Get or create assistant for this thread
-            assistant = await self.get_or_create_assistant(thread.id)
-            
-            # Get baseline messages before adding the new message
-            baseline_messages = await self.get_messages(thread.id)
-            baseline_message_ids = {msg.id for msg in baseline_messages}
-            
-            # Add user message to thread
-            user_message = await self.add_message_to_thread(thread.id, message)
+            # Set up thread, assistant and get baseline message IDs
+            thread, assistant, baseline_message_ids = await self._setup_thread_for_chat(message, session_id)
             
             # Run the thread
             run = await self.run_thread(thread.id, assistant.id)
@@ -275,35 +255,19 @@ class AzureOpenAIService:
         except ValueError as e:
             logger.error(f"Configuration error: {str(e)}")
             # Pass through credential-related errors
-            return {
-                "voiceSummary": "Configuration Error",
-                "displayResponse": f"Azure OpenAI Configuration Error: {str(e)}"
-            }
+            return self._create_error_response(e, is_config_error=True)
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-            return {
-                "voiceSummary": "Error processing request",
-                "displayResponse": f"Error processing request: {str(e)}"
-            }
+            return self._create_error_response(e)
     
     async def get_chat_response_stream(self, message: str, session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """Get a streaming chat response with word by word streaming."""
         try:
-            logger.info(f"Processing streaming chat request with message: '{message[:20]}...' and session ID: {session_id}")
+            logger.info(f"Processing streaming chat: '{message[:20]}...' (session: {session_id})")
             start_time = asyncio.get_event_loop().time()
             
-            # Get or create thread for this session
-            thread = await self.get_or_create_thread(session_id)
-            
-            # Get or create assistant for this thread
-            assistant = await self.get_or_create_assistant(thread.id)
-            
-            # Get initial messages to establish baseline
-            initial_messages = await self.get_messages(thread.id)
-            initial_message_ids = {msg.id for msg in initial_messages}
-            
-            # Add user message to thread
-            await self.add_message_to_thread(thread.id, message)
+            # Set up thread, assistant and get baseline message IDs
+            thread, assistant, initial_message_ids = await self._setup_thread_for_chat(message, session_id)
             
             # Run the thread
             run = await self.run_thread(thread.id, assistant.id)
@@ -339,14 +303,9 @@ class AzureOpenAIService:
                                             new_text = current_content[last_content_length:]
                                             last_content_length = len(current_content)
                                             
-                                            # Process the new text and stream word by word
-                                            for char in new_text:
-                                                current_word_buffer += char
-                                                # When we hit a space or punctuation followed by space, yield the word
-                                                if char == ' ' or char in ['.', ',', '!', '?', ':', ';'] and current_word_buffer.strip():
-                                                    yield current_word_buffer
-                                                    current_word_buffer = ""
-                                                    await asyncio.sleep(0.05)  # Slightly longer pause between words
+                                            # Use our helper to stream the new text word by word
+                                            async for word in self._stream_text_word_by_word(new_text):
+                                                yield word
                                             
                                             # If there's anything left in the buffer at the end of new text,
                                             # keep it for the next iteration
@@ -379,18 +338,9 @@ class AzureOpenAIService:
                         # Send any remaining content
                         remaining = final_content[last_content_length:]
                         if remaining:
-                            # Process any remaining text
-                            for char in remaining:
-                                current_word_buffer += char
-                                # When we hit a space or punctuation followed by space, yield the word
-                                if char == ' ' or char in ['.', ',', '!', '?', ':', ';'] and current_word_buffer.strip():
-                                    yield current_word_buffer
-                                    current_word_buffer = ""
-                                    await asyncio.sleep(0.05)
-                            
-                            # Yield any final content in the buffer
-                            if current_word_buffer:
-                                yield current_word_buffer
+                            # Use our helper to stream any remaining text
+                            async for word in self._stream_text_word_by_word(remaining):
+                                yield word
                     except (AttributeError, IndexError) as e:
                         logger.error(f"Error processing final streaming content: {str(e)}")
             else:
@@ -401,18 +351,9 @@ class AzureOpenAIService:
                 })
                 logger.error(f"Stream failed with status: {run.status}")
                 
-                # Stream the error message word by word for consistency
-                word_buffer = ""
-                for char in error_json:
-                    word_buffer += char
-                    if char == ' ':
-                        yield word_buffer
-                        word_buffer = ""
-                        await asyncio.sleep(0.05)
-                
-                # Yield any remaining text
-                if word_buffer:
-                    yield word_buffer
+                # Use our helper to stream the error message word by word
+                async for word in self._stream_text_word_by_word(error_json):
+                    yield word
                 
             total_duration = asyncio.get_event_loop().time() - start_time
             logger.info(f"Total streaming request took {total_duration:.2f} seconds")
@@ -420,44 +361,22 @@ class AzureOpenAIService:
         except ValueError as e:
             # For credential-related errors
             logger.error(f"Configuration error in streaming: {str(e)}")
-            error_json = json.dumps({
-                "voiceSummary": "Configuration Error",
-                "displayResponse": f"Azure OpenAI Configuration Error: {str(e)}"
-            })
+            error_response = self._create_error_response(e, is_config_error=True)
+            error_json = json.dumps(error_response)
             
-            # Stream the error message word by word
-            word_buffer = ""
-            for char in error_json:
-                word_buffer += char
-                if char == ' ':
-                    yield word_buffer
-                    word_buffer = ""
-                    await asyncio.sleep(0.05)
-            
-            # Yield any final word
-            if word_buffer:
-                yield word_buffer
+            # Stream the error message using our helper
+            async for word in self._stream_text_word_by_word(error_json):
+                yield word
                 
         except Exception as e:
             # For other errors
             logger.error(f"Unexpected error in streaming: {str(e)}", exc_info=True)
-            error_json = json.dumps({
-                "voiceSummary": "Error processing request",
-                "displayResponse": f"Error processing request: {str(e)}"
-            })
+            error_response = self._create_error_response(e)
+            error_json = json.dumps(error_response)
             
-            # Stream the error message word by word
-            word_buffer = ""
-            for char in error_json:
-                word_buffer += char
-                if char == ' ':
-                    yield word_buffer
-                    word_buffer = ""
-                    await asyncio.sleep(0.05)
-            
-            # Yield any final word
-            if word_buffer:
-                yield word_buffer
+            # Stream the error message using our helper
+            async for word in self._stream_text_word_by_word(error_json):
+                yield word
                 
     async def cleanup_session(self, session_id: str) -> bool:
         """Cleanup resources associated with a session."""
@@ -473,6 +392,79 @@ class AzureOpenAIService:
             return True
             
         return False
+    
+    async def _stream_text_word_by_word(self, text: str) -> AsyncGenerator[str, None]:
+        """
+        Helper method to stream text word by word with appropriate pauses.
+        
+        Args:
+            text: Text content to stream
+            
+        Yields:
+            Words or word fragments with punctuation
+        """
+        # Split text by spaces but keep punctuation attached to words
+        words = []
+        current_word = ""
+        
+        for char in text:
+            if char == ' ':
+                if current_word:
+                    words.append(current_word)
+                    current_word = ""
+            else:
+                current_word += char
+        
+        # Add the last word if there is one
+        if current_word:
+            words.append(current_word)
+        
+        # Yield each word with a small delay
+        for word in words:
+            yield word
+            await asyncio.sleep(0.05)  # Consistent pause between words
+    
+    async def _setup_thread_for_chat(self, message: str, session_id: Optional[str] = None) -> Tuple[Any, Any, set]:
+        """
+        Common setup for both streaming and non-streaming chat responses.
+        
+        Args:
+            message: The user message
+            session_id: Optional session ID for conversation persistence
+            
+        Returns:
+            Tuple containing (thread, assistant, baseline_message_ids)
+        """
+        # Get or create thread for this session
+        thread = await self.get_or_create_thread(session_id)
+        
+        # Get or create assistant for this thread
+        assistant = await self.get_or_create_assistant(thread.id)
+        
+        # Get baseline messages before adding the new message
+        baseline_messages = await self.get_messages(thread.id)
+        baseline_message_ids = {msg.id for msg in baseline_messages}
+        
+        # Add user message to thread
+        await self.add_message_to_thread(thread.id, message)
+        
+        # Return the setup results
+        return thread, assistant, baseline_message_ids
+    
+    def _create_error_response(self, error: Exception, is_config_error: bool = False) -> Dict[str, str]:
+        """Create a standardized error response."""
+        error_message = str(error)
+        if is_config_error:
+            summary = f"Configuration Error: {error_message}"
+            display = f"The AI service is not properly configured: {error_message}"
+        else:
+            summary = f"Error: {error_message}"
+            display = f"An unexpected error occurred: {error_message}"
+        
+        return {
+            "voiceSummary": summary,
+            "displayResponse": display
+        }
 
 
 # Create a service instance to be used throughout the application
