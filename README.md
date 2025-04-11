@@ -79,6 +79,8 @@ The container will build with the same configuration as GitHub Codespaces.
 2. Complete the Azure deployment form with your preferred settings.
 3. After the deployment completes, check the outputs section of the deployment for:
    - `openAIServiceEndpoint`: The endpoint URL for your Azure OpenAI service
+   - `contentSafetyServiceEndpoint`: The endpoint URL for your Azure Content Safety service
+   - `contentSafetyServiceName`: The name of your Azure Content Safety service
 
 ### 2. Get Your API Key
 
@@ -103,6 +105,11 @@ The container will build with the same configuration as GitHub Codespaces.
    AZURE_OPENAI_API_VERSION=2024-05-01-preview
    AZURE_OPENAI_MODEL_NAME=gpt-4o-mini
 
+   # Azure Content Safety Settings
+   AZURE_CONTENT_SAFETY_ENDPOINT=your_contentSafetyServiceEndpoint_from_deployment_output
+   AZURE_CONTENT_SAFETY_KEY=your_content_safety_key_from_azure_portal
+   AZURE_CONTENT_SAFETY_SERVICE_NAME=your_contentSafetyServiceName_from_deployment_output
+   
    # Server Settings (for backend)
    SERVER_HOST=0.0.0.0
    SERVER_PORT=8000
@@ -115,8 +122,11 @@ The container will build with the same configuration as GitHub Codespaces.
 
 Replace:
 
-- `your_openAIServiceEndpoint_from_deployment_output` with the endpoint URL from the deployment outputs
-- `your_api_key_from_azure_portal` with the API key you copied from the Azure portal
+- `your_openAIServiceEndpoint_from_deployment_output` with the OpenAI endpoint URL from the deployment outputs
+- `your_api_key_from_azure_portal` with the OpenAI API key from the Azure portal
+- `your_contentSafetyServiceEndpoint_from_deployment_output` with the Content Safety endpoint from the deployment outputs
+- `your_contentSafetyServiceName_from_deployment_output` with the Content Safety service name from the deployment outputs
+- `your_content_safety_key_from_azure_portal` with the Content Safety API key from the Azure portal
 
 The model name should already be correctly set to "gpt-4o-mini" as specified in the deployment template.
 

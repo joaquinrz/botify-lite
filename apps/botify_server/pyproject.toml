@@ -14,11 +14,19 @@ python-dotenv = "^1.1.0"
 openai = "^1.72.0"
 sse-starlette = "^2.2.1"
 pydantic-settings = "^2.8.1"
+aiohttp = "^3.9.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
 pytest-cov = "^6.1.1"
+pytest-asyncio = "^0.26.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "asyncio: mark a test as an asyncio test",
+]
