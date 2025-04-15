@@ -313,8 +313,8 @@ class AzureOpenAIService:
                                         logger.error(f"Error processing streaming content: {str(e)}")
                                     break
                 
-                # Short interval for responsive polling
-                await asyncio.sleep(0.3)
+                # Shorter polling interval for more responsive streaming
+                await asyncio.sleep(0.1)  # Reduced from 0.3 to 0.1 seconds for faster updates
                 run = await self.client.beta.threads.runs.retrieve(
                     thread_id=thread.id,
                     run_id=run.id
@@ -403,27 +403,16 @@ class AzureOpenAIService:
         Yields:
             Words or word fragments with punctuation, including JSON structural elements
         """
-        # For JSON responses, we need to handle both words and JSON structural elements
-        # JSON structural elements: {, }, [, ], :, ", ,
-        json_special_chars = {'{', '}', '[', ']', ':', '"', ','}
-        
+
         words = []
         current_word = ""
         
         for char in text:
-            # If we encounter a JSON special character, we should yield what we have so far
-            # and then yield the special character as a separate token
-            if char in json_special_chars:
+            if char == ' ':
                 if current_word:
                     words.append(current_word)
                     current_word = ""
                 words.append(char)
-            # If we encounter a space, yield the current word if we have one
-            elif char == ' ':
-                if current_word:
-                    words.append(current_word)
-                    current_word = ""
-                words.append(char)  # Also yield spaces for proper formatting
             else:
                 current_word += char
         
@@ -431,7 +420,7 @@ class AzureOpenAIService:
         if current_word:
             words.append(current_word)
         
-        # Yield each token with a minimal delay for fast streaming
+        # Stream everything back as fast as possible without any delays
         for word in words:
             yield word
             await asyncio.sleep(0.001)
