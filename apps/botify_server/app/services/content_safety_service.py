@@ -3,6 +3,7 @@ import json
 import logging
 import httpx
 from typing import Dict, Any, Tuple, List
+from traceloop.sdk.decorators import task
 from ..core.config import settings
 
 # Set up logging
@@ -152,6 +153,7 @@ class ContentSafetyService:
             "message": message
         }
     
+    @task("is_safe_content")
     async def is_safe_content(self, message: str) -> Tuple[bool, List[str]]:
         """
         Check if content is safe and return a tuple of (is_safe, reasons).

@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Dict, List, Optional, ClassVar
+from typing import Dict, List, ClassVar
 from pydantic import Field, ConfigDict, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv, find_dotenv
@@ -30,13 +30,13 @@ class Settings(BaseSettings):
         description="Azure OpenAI API key"
     )
     azure_openai_api_version: str = Field(
-        default=os.getenv("AZURE_OPENAI_API_VERSION", "2024-05-01-preview"),
+        default=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
         description="Azure OpenAI API version"
     )
     
     # Model settings
     model_name: str = Field(
-        default=os.getenv("AZURE_OPENAI_MODEL_NAME", "gpt-4o-mini"),
+        default=os.getenv("AZURE_OPENAI_MODEL_NAME", "gpt-4.1-mini-2025-04-14"),
         description="Model deployment name in Azure"
     )
     
@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     vector_store_id: str = Field(
         default=os.getenv("AZURE_OPENAI_VECTOR_STORE_ID", ""),
         description="Vector store ID for file search"
+    )
+    
+    # Telemetry settings
+    telemetry_enabled: bool = Field(
+        default=os.getenv("TELEMETRY_ENABLED", "false").lower() == "true",
+        description="Whether to enable OpenLLMetry telemetry"
+    )
+    # Common telemetry settings
+    service_name: str = Field(
+        default=os.getenv("SERVICE_NAME", "botify-server"),
+        description="Service name for telemetry"
     )
     
     # Server settings

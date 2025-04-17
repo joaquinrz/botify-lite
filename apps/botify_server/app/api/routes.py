@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Optional, Any
 from sse_starlette.sse import EventSourceResponse
+from traceloop.sdk.decorators import workflow, task
 
 from ..services.openai_service import openai_service
 from ..services.content_safety_service import content_safety_service
@@ -36,6 +37,7 @@ async def _check_service_availability() -> Optional[ChatResponse]:
         )
     return None
 
+@task("check_content_safety")
 async def _check_content_safety(message: str) -> Dict[str, Any]:
     """
     Helper function to check content safety.
@@ -69,13 +71,14 @@ async def _check_content_safety(message: str) -> Dict[str, Any]:
     
     return {"is_safe": False, "response": response}
 
-@router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+@workflow("chat")
+async def _process_chat_request(message: str, session_id: Optional[str] = None) -> ChatResponse:
     """
-    Non-streaming chat endpoint.
+    Process a chat request and return a response.
     
     Args:
-        request: The chat request containing the message and optional session_id
+        message: The user message
+        session_id: Optional session ID for conversation context
         
     Returns:
         ChatResponse: The response from the Azure OpenAI API
@@ -87,12 +90,12 @@ async def chat(request: ChatRequest):
     
     try:
         # Check content safety
-        safety_check = await _check_content_safety(request.message)
+        safety_check = await _check_content_safety(message)
         if not safety_check["is_safe"]:
             return safety_check["response"]
             
         # If content is safe, pass the session_id to the service
-        response = await openai_service.get_chat_response(request.message, session_id=request.session_id)
+        response = await openai_service.get_chat_response(message, session_id=session_id)
         return response
     except Exception as e:
         error_message = str(e)
@@ -105,14 +108,27 @@ async def chat(request: ChatRequest):
         else:
             raise HTTPException(status_code=500, detail=f"Error processing chat: {error_message}")
 
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    Non-streaming chat endpoint.
+    
+    Args:
+        request: The chat request containing the message and optional session_id
+        
+    Returns:
+        ChatResponse: The response from the Azure OpenAI API
+    """
+    return await _process_chat_request(request.message, request.session_id)
 
+@task("create_error_stream")
 async def _create_error_stream(message: str):
     """Helper function to create a simple error stream."""
     async def error_stream():
         yield message
     return error_stream
 
-
+@task("create_response_stream")
 async def _create_response_stream(response: ChatResponse):
     """Helper function to create a stream from a ChatResponse."""
     async def response_stream():
@@ -122,6 +138,51 @@ async def _create_response_stream(response: ChatResponse):
         })
     return response_stream
 
+
+@workflow("chat_stream")
+async def _process_chat_stream_request(message: str, session_id: Optional[str] = None):
+    """
+    Process a streaming chat request and return a response generator.
+    
+    Args:
+        message: The user message
+        session_id: Optional session ID for conversation context
+        
+    Returns:
+        A response generator or error handler for EventSourceResponse
+    """
+    # Check service availability
+    service_error = await _check_service_availability()
+    if service_error:
+        error_stream = await _create_error_stream(
+            f"Configuration Error: {service_error.displayResponse}"
+        )
+        return error_stream()
+    
+    try:
+        # Check content safety
+        safety_check = await _check_content_safety(message)
+        if not safety_check["is_safe"]:
+            response = safety_check["response"]
+            response_stream = await _create_response_stream(response)
+            return response_stream()
+            
+        # If content is safe, pass the session_id to the service
+        return openai_service.get_chat_response_stream(
+            message, 
+            session_id=session_id
+        )
+    except Exception as e:
+        error_message = str(e)
+        
+        if "API key" in error_message or "endpoint" in error_message:
+            # More user-friendly message for credential errors
+            message = f"Configuration Error: Azure OpenAI Configuration Error: {error_message}"
+        else:
+            message = f"Error processing streaming chat: {error_message}"
+        
+        error_stream = await _create_error_stream(message)
+        return error_stream()
 
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
@@ -134,41 +195,8 @@ async def chat_stream(request: ChatRequest):
     Returns:
         EventSourceResponse: A streaming response with chat tokens
     """
-    # Check service availability
-    service_error = await _check_service_availability()
-    if service_error:
-        error_stream = await _create_error_stream(
-            f"Configuration Error: {service_error.displayResponse}"
-        )
-        return EventSourceResponse(error_stream())
-    
-    try:
-        # Check content safety
-        safety_check = await _check_content_safety(request.message)
-        if not safety_check["is_safe"]:
-            response = safety_check["response"]
-            response_stream = await _create_response_stream(response)
-            return EventSourceResponse(response_stream())
-            
-        # If content is safe, pass the session_id to the service
-        return EventSourceResponse(
-            openai_service.get_chat_response_stream(
-                request.message, 
-                session_id=request.session_id
-            )
-        )
-    except Exception as e:
-        error_message = str(e)
-        
-        if "API key" in error_message or "endpoint" in error_message:
-            # More user-friendly message for credential errors
-            message = f"Configuration Error: Azure OpenAI Configuration Error: {error_message}"
-        else:
-            message = f"Error processing streaming chat: {error_message}"
-        
-        error_stream = await _create_error_stream(message)
-        return EventSourceResponse(error_stream())
-
+    stream_generator = await _process_chat_stream_request(request.message, request.session_id)
+    return EventSourceResponse(stream_generator)
 
 @router.post("/session/cleanup")
 async def cleanup_session(request: SessionRequest):

@@ -114,6 +114,10 @@ The container will build with the same configuration as GitHub Codespaces.
    SERVER_HOST=0.0.0.0
    SERVER_PORT=8000
 
+   # Telemetry Settings (for OpenLLMetry)
+   TELEMETRY_ENABLED=false
+   AZURE_APPINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
+
    # Client Settings (for CLI)
    API_BASE_URL=http://localhost:8000
    USE_STREAMING=true
@@ -242,6 +246,37 @@ If you see errors like `[Errno -2] Name or service not known` or `openai.APIConn
 3. The specified model name doesn't exist in your Azure OpenAI resource
 
 Solution: Check and update your credentials in the `apps/credentials.env` file with valid values from your Azure OpenAI service.
+
+## Telemetry with OpenLLMetry
+
+Botify Lite includes OpenLLMetry integration for monitoring and observability of your LLM applications. This feature helps you gain insights into:
+
+- Performance metrics (latency, token usage, etc.)
+- Request/response patterns
+- Error rates and types
+- Cost tracking
+
+### Azure Application Insights Integration
+
+Botify Lite uses Azure Application Insights as its telemetry destination, providing:
+- Built-in integration with Azure's monitoring platform
+- Automatic correlation with other Azure services
+- Pre-built dashboards for LLM monitoring
+- Comprehensive application performance monitoring
+
+### Enabling Telemetry
+
+Telemetry is disabled by default. To enable it, set the following environment variables in your `apps/credentials.env` file:
+
+```bash
+# Enable telemetry collection
+TELEMETRY_ENABLED=true
+
+# Azure App Insights connection string
+AZURE_APPINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
+```
+
+OpenLLMetry automatically collects key metrics without requiring any code changes, giving you immediate visibility into your LLM application's performance and behavior.
 
 ## License
 

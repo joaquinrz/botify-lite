@@ -2,9 +2,10 @@ import json
 import asyncio
 import os
 import logging
-from typing import AsyncGenerator, Dict, Any, Optional, List, Union, Tuple
+from typing import AsyncGenerator, Dict, Any, Optional, List, Tuple
 
 from openai import AsyncAzureOpenAI
+from traceloop.sdk.decorators import task
 
 from ..core.config import settings
 
@@ -50,6 +51,7 @@ class AzureOpenAIService:
         # Store assistants by thread IDs
         self.assistants = {}
     
+    @task(name="load_instructions")
     def _load_instructions(self) -> str:
         """Load the assistant instructions from the prompt file."""
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -64,7 +66,7 @@ class AzureOpenAIService:
             1. You must not use prior knowledge to answer questions; only information retrieved from the vector store is allowed.
             2. Your output MUST always be a valid JSON object with voiceSummary and displayResponse properties.
             """
-    
+    @task(name="create_assistant")
     async def create_assistant(self) -> Any:
         """Create an assistant with the specified configuration."""
         try:
@@ -97,6 +99,7 @@ class AzureOpenAIService:
         else:
             raise ValueError(f"Error with Azure OpenAI service: {error_message}") from error
     
+    @task(name="get_or_create_thread")
     async def get_or_create_thread(self, session_id: Optional[str] = None) -> Any:
         """Get an existing thread or create a new one for a session."""
         # If no session ID is provided or the session doesn't exist, create a new thread
@@ -140,6 +143,7 @@ class AzureOpenAIService:
             content=message
         )
     
+    @task(name="run_thread")
     async def run_thread(self, thread_id: str, assistant_id: str) -> Any:
         """Run the thread with the specified assistant."""
         return await self.client.beta.threads.runs.create(
@@ -147,13 +151,13 @@ class AzureOpenAIService:
             assistant_id=assistant_id
         )
     
+    @task(name="poll_run_status")
     async def poll_run_status(self, thread_id: str, run_id: str) -> Any:
         """Poll for run status until completion."""
         run = await self.client.beta.threads.runs.retrieve(
             thread_id=thread_id,
             run_id=run_id
         )
-        
         poll_count = 0
         run_start_time = asyncio.get_event_loop().time()
         
@@ -171,7 +175,7 @@ class AzureOpenAIService:
         logger.info(f"Run completed with status {run.status} after {run_duration:.2f} seconds and {poll_count} polls")
         
         return run
-    
+    @task(name="get_messages")
     async def get_messages(self, thread_id: str, order: str = "desc", limit: int = 10) -> List[Any]:
         """Get messages from a thread."""
         messages = await self.client.beta.threads.messages.list(
@@ -182,6 +186,7 @@ class AzureOpenAIService:
         
         return messages.data
     
+    @task(name="find_assistant_message")
     async def find_assistant_message(self, messages: List[Any], baseline_message_ids: set = None) -> Optional[Any]:
         """Find the most relevant assistant message from a list of messages."""
         # If we have baseline message IDs, look for new assistant messages
@@ -198,6 +203,7 @@ class AzureOpenAIService:
                 
         return None
     
+    @task(name="extract_message_content")
     def extract_message_content(self, message: Any) -> Dict[str, str]:
         """Extract and parse the content from an assistant message."""
         if not message or not message.content:
@@ -217,7 +223,7 @@ class AzureOpenAIService:
                 "voiceSummary": "Error processing response",
                 "displayResponse": f"Error processing response: {str(e)}"
             }
-    
+    @task(name="get_chat_response")
     async def get_chat_response(self, message: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Get a chat response for a message (non-streaming)."""
         try:
@@ -260,6 +266,7 @@ class AzureOpenAIService:
             logger.error(f"Unexpected error: {str(e)}", exc_info=True)
             return self._create_error_response(e)
     
+    @task(name="get_chat_response_stream")
     async def get_chat_response_stream(self, message: str, session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """Get a streaming chat response with word by word streaming."""
         try:
@@ -393,6 +400,7 @@ class AzureOpenAIService:
             
         return False
     
+    @task(name="stream_text_word_by_word")
     async def _stream_text_word_by_word(self, text: str) -> AsyncGenerator[str, None]:
         """
         Helper method to stream text word by word with appropriate pauses.
@@ -425,6 +433,7 @@ class AzureOpenAIService:
             yield word
             await asyncio.sleep(0.001)
     
+    @task(name="setup_thread_for_chat")
     async def _setup_thread_for_chat(self, message: str, session_id: Optional[str] = None) -> Tuple[Any, Any, set]:
         """
         Common setup for both streaming and non-streaming chat responses.
