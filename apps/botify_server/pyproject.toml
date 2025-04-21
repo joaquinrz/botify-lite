@@ -7,14 +7,15 @@ readme = "README.md"
 packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.10,<4.0"
 fastapi = "^0.115.12"
 uvicorn = "^0.34.0"
 python-dotenv = "^1.1.0"
-openai = "^1.72.0"
+openai = "^1.75.0"
 sse-starlette = "^2.2.1"
 pydantic-settings = "^2.8.1"
 aiohttp = "^3.9.3"
+traceloop-sdk = "^0.39.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

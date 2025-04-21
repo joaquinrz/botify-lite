@@ -14,6 +14,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
+    networks:
+      - botify_net
 
   botify_cli:
     build: ./apps/botify_cli
@@ -30,7 +32,43 @@ services:
     # Interactive mode
     stdin_open: true
     tty: true
+    networks:
+      - botify_net
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    container_name: aspire-dashboard
+    ports:
+      - "18888:18888"   # Dashboard UI
+      - "18889:18889"    # OTLP gRPC endpoint
+      - "18890:18890"    # OTLP HTTP endpoint
+    restart: unless-stopped
+    networks:
+      - botify_net
+
+  otelcol:
+    build: ./apps/otel_col
+    container_name: otelcol
+    deploy:
+      resources:
+        limits:
+          memory: 125M
+    restart: unless-stopped
+    env_file: ./apps/credentials.env
+    volumes:
+      - ./apps/otel_col/otel_config.yaml:/etc/otelcol-config.yml
+    ports:
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP http receiver
+    networks:
+      - botify_net
+    depends_on:
+      - aspire-dashboard
 
 volumes:
   chat_history:
     driver: local
+    
+networks:
+  botify_net:
+    driver: bridge

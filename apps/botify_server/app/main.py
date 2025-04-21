@@ -3,6 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router as chat_router
 from .core.config import settings
+from .core.telemetry import init_telemetry
+
+# Initialize telemetry
+init_telemetry(
+    service_name=settings.service_name,
+    enabled=settings.telemetry_enabled
+)
 
 # Create FastAPI application
 app = FastAPI(
