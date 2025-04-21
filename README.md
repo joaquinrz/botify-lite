@@ -12,7 +12,10 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
   - `botify_cli/`: Botify CLI client
   - `credentials.env`: Environment variables configuration file
   - `credentials.env.template`: Template file for environment variables
-- `docker-compose.yml`: Docker Compose configuration for running both applications
+  - `otel_col/`: OpenTelemetry Collector configuration and Dockerfile
+- `data/`: JSON files for vector store knowledge base
+- `docker-compose.yml`: Docker Compose configuration for running all services
+- `scripts/`: Utility scripts for setup and maintenance
 
 ## Features
 
@@ -21,12 +24,23 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
   - Supports both streaming and non-streaming responses
   - RESTful API endpoints
   - Complete with unit tests
+  - Azure Content Safety integration for content moderation
+  - Vector store integration for enhanced knowledge retrieval
 
 - **Botify CLI Client**:
   - Interactive terminal interface using Rich
   - Support for both streaming and non-streaming modes
   - Chat history management
   - Command system for various operations
+
+- **Observability & Telemetry**:
+  - Comprehensive telemetry through OpenTelemetry and Traceloop SDK
+  - Local observability stack with Aspire Dashboard
+
+- **Privacy & Security**:
+  - Content moderation via Azure Content Safety
+  - Configurable telemetry with privacy controls
+  - Sensitive information redaction in logs and traces
 
 ## Requirements
 
@@ -114,8 +128,9 @@ The container will build with the same configuration as GitHub Codespaces.
    SERVER_HOST=0.0.0.0
    SERVER_PORT=8000
 
-   # Telemetry Settings (for OpenLLMetry)
+   # Telemetry Settings
    TELEMETRY_ENABLED=false
+   OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
    AZURE_APPINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
 
    # Client Settings (for CLI)
@@ -145,7 +160,6 @@ The application uses an Azure OpenAI vector store to provide information to the 
 2. Run the vector store creation script:
 
    ```bash
-
    # Install dependencies
    poetry install
 
@@ -196,7 +210,6 @@ poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 #### Run the CLI Application in a new terminal
 
 ```bash
-
 # Navigate to the CLI directory
 cd apps/botify_cli
 
@@ -234,6 +247,27 @@ The CLI client provides an interactive terminal interface for chatting with the 
 - `/stream on` or `/stream off`: Toggle streaming mode
 - `/exit` or `/quit`: Exit the application
 
+## Telemetry and Observability
+
+Botify Lite includes a comprehensive observability stack:
+
+### Components
+
+- **Traceloop SDK**: Automatically instruments OpenAI API calls, FastAPI routes, and more
+- **OpenTelemetry Collector**: Collects and processes telemetry data
+- **Aspire Dashboard**: Visual interface for exploring traces and metrics
+
+### Dashboard Access
+
+When running with Docker Compose, access the Aspire Dashboard at:
+- http://localhost:18888
+
+This provides visibility into:
+- API request/response flows
+- LLM prompt tokens and completion tokens
+- Request latency and errors
+- Dependencies between services
+
 
 ## Common Errors and Solutions
 
@@ -247,36 +281,13 @@ If you see errors like `[Errno -2] Name or service not known` or `openai.APIConn
 
 Solution: Check and update your credentials in the `apps/credentials.env` file with valid values from your Azure OpenAI service.
 
-## Telemetry with OpenLLMetry
+### Telemetry Connection Issues
 
-Botify Lite includes OpenLLMetry integration for monitoring and observability of your LLM applications. This feature helps you gain insights into:
+If services can't connect to the telemetry system:
 
-- Performance metrics (latency, token usage, etc.)
-- Request/response patterns
-- Error rates and types
-- Cost tracking
-
-### Azure Application Insights Integration
-
-Botify Lite uses Azure Application Insights as its telemetry destination, providing:
-- Built-in integration with Azure's monitoring platform
-- Automatic correlation with other Azure services
-- Pre-built dashboards for LLM monitoring
-- Comprehensive application performance monitoring
-
-### Enabling Telemetry
-
-Telemetry is disabled by default. To enable it, set the following environment variables in your `apps/credentials.env` file:
-
-```bash
-# Enable telemetry collection
-TELEMETRY_ENABLED=true
-
-# Azure App Insights connection string
-AZURE_APPINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
-```
-
-OpenLLMetry automatically collects key metrics without requiring any code changes, giving you immediate visibility into your LLM application's performance and behavior.
+1. Ensure the OpenTelemetry Collector is running (`docker ps` should show the `otelcol` container)
+2. Check that `OTEL_EXPORTER_OTLP_ENDPOINT` is set correctly in your environment
+3. Verify network connectivity between containers (they should all be on the `botify_net` network)
 
 ## License
 

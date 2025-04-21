@@ -12,10 +12,9 @@ processors:
   batch: {}
 
 exporters:
-  # We use the OTLP exporter to send data to Jaeger over gRPC
-  # on port 4317 (the default OTLP gRPC port).
-  otlp/jaeger:
-    endpoint: jaeger:4317
+  # We use the OTLP exporter to send data to Aspire Dashboard over gRPC
+  otlp:
+    endpoint: aspire-dashboard:18889
     tls:
       insecure: true
 
@@ -23,10 +22,10 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [otlp/jaeger]
+      exporters: [otlp]
     metrics:
       receivers: [otlp]
-      exporters: [otlp/jaeger]
+      exporters: [otlp]
     logs:
       receivers: [otlp]
-      exporters: [otlp/jaeger]
+      exporters: [otlp]
