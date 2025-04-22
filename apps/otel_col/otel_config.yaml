@@ -17,6 +17,11 @@ exporters:
     endpoint: aspire-dashboard:18889
     tls:
       insecure: true
+  
+  # Adding debug exporter to see logs in the collector output
+  debug:
+    verbosity: detailed
+
 
 service:
   pipelines:

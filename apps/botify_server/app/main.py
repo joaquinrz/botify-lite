@@ -1,15 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import atexit
 
 from .api.routes import router as chat_router
 from .core.config import settings
-from .core.telemetry import init_telemetry
+from .core.telemetry import init_telemetry, shutdown_telemetry
 
 # Initialize telemetry
 init_telemetry(
     service_name=settings.service_name,
-    enabled=settings.telemetry_enabled
+    enabled=settings.telemetry_enabled,
+    log_level=settings.telemetry_log_level
 )
+
+# Register shutdown handler
+atexit.register(shutdown_telemetry)
 
 # Create FastAPI application
 app = FastAPI(

@@ -36,7 +36,7 @@ services:
       - botify_net
 
   aspire-dashboard:
-    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    image: mcr.microsoft.com/dotnet/nightly/aspire-dashboard:9.2.0
     container_name: aspire-dashboard
     ports:
       - "18888:18888"   # Dashboard UI

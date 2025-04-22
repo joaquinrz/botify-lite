@@ -1,7 +1,7 @@
 import json
 import asyncio
 import os
-import logging
+import structlog
 from typing import AsyncGenerator, Dict, Any, Optional, List, Tuple
 
 from openai import AsyncAzureOpenAI
@@ -9,8 +9,8 @@ from traceloop.sdk.decorators import task
 
 from ..core.config import settings
 
-# Set up logging
-logger = logging.getLogger(__name__)
+# Set up structured logging
+logger = structlog.get_logger(__name__)
 
 
 class AzureOpenAIService:
@@ -61,7 +61,7 @@ class AzureOpenAIService:
             with open(prompt_path, "r") as file:
                 return file.read()
         except FileNotFoundError:
-            logger.warning(f"Instructions file not found at {prompt_path}. Using default instructions.")
+            logger.warning("openai.instructions_missing", path=prompt_path)
             return """
             1. You must not use prior knowledge to answer questions; only information retrieved from the vector store is allowed.
             2. Your output MUST always be a valid JSON object with voiceSummary and displayResponse properties.
@@ -104,9 +104,9 @@ class AzureOpenAIService:
         """Get an existing thread or create a new one for a session."""
         # If no session ID is provided or the session doesn't exist, create a new thread
         if not session_id or session_id not in self.sessions:
-            logger.info(f"Creating new thread for session: {session_id}")
+            logger.debug("openai.thread.new", session_id=session_id)
             thread = await self.client.beta.threads.create()
-            logger.info(f"New thread created with ID: {thread.id}")
+            logger.info("openai.thread.created", thread_id=thread.id)
             
             # If we have a session ID, store it for later use
             if session_id:
@@ -116,7 +116,7 @@ class AzureOpenAIService:
         
         # If the session exists, get the thread ID
         thread_id = self.sessions[session_id]
-        logger.info(f"Using existing thread ID {thread_id} for session ID {session_id}")
+        logger.debug("openai.thread.existing", session_id=session_id, thread_id=thread_id)
         
         # Return a simple object with just the ID to use in API calls
         return type('Thread', (), {'id': thread_id})
@@ -164,7 +164,7 @@ class AzureOpenAIService:
         while run.status in ["queued", "in_progress", "cancelling"]:
             poll_count += 1
             await asyncio.sleep(1)
-            logger.info(f"Polling run status ({poll_count}): {run.status}")
+            logger.debug("openai.run.poll", status=run.status, attempt=poll_count)
             
             run = await self.client.beta.threads.runs.retrieve(
                 thread_id=thread_id,
@@ -172,7 +172,12 @@ class AzureOpenAIService:
             )
         
         run_duration = asyncio.get_event_loop().time() - run_start_time
-        logger.info(f"Run completed with status {run.status} after {run_duration:.2f} seconds and {poll_count} polls")
+        logger.info(
+            "openai.run.completed",
+            status=run.status,
+            duration=round(run_duration, 2),
+            polls=poll_count
+        )
         
         return run
     @task(name="get_messages")
@@ -193,7 +198,7 @@ class AzureOpenAIService:
         if baseline_message_ids:
             for msg in messages:
                 if msg.role == "assistant" and msg.id not in baseline_message_ids:
-                    logger.info(f"Found new assistant message with ID: {msg.id}")
+                    logger.debug("openai.message.found", message_id=msg.id)
                     return msg
         
         # If no specific new message is found, use the first assistant message
