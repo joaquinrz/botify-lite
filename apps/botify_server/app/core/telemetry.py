@@ -12,7 +12,11 @@ from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 
-logger = logging.getLogger(__name__)
+# Import our custom structured logging
+from .logging import get_logger
+
+# Get a structured logger for this module
+logger = get_logger(__name__)
 
 # Global variable to hold the logger provider for shutdown
 _logger_provider: Optional[LoggerProvider] = None
@@ -72,20 +76,43 @@ def init_telemetry(
         # Convert log level string to numeric level
         numeric_level = getattr(logging, log_level.upper(), logging.INFO)
         
-        # Create a LoggingHandler
+        # Create a LoggingHandler with the configured level
         handler = LoggingHandler(level=numeric_level, logger_provider=_logger_provider)
-
+        
+        # Configure root logger with the same level from configuration
         root = logging.getLogger()
         root.setLevel(numeric_level)
         root.addHandler(handler)
-
-        # also attach to Uvicorn/FastAPI loggers so HTTP request logs flow through OTLP
-        for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        
+        # Configure Uvicorn and application loggers with the same level
+        for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "app"):
             lg = logging.getLogger(name)
             lg.setLevel(numeric_level)
-            lg.addHandler(handler)
+            # Don't add duplicate handler as it will inherit from root
+            
+        # Configure HTTP client loggers
+        # This makes aiohttp and other HTTP client logs consistent with our structured logs
+        for client_logger in ["aiohttp", "aiohttp.client", "httpx", "urllib3", "requests"]:
+            lg = logging.getLogger(client_logger)
+            lg.setLevel(numeric_level)
+            # HTTP libraries often have their own formatters, remove them
+            lg.handlers = []
+            # Inherit from root logger
+            
+        # Configure OpenAI SDK's logger specifically
+        openai_logger = logging.getLogger("openai")
+        openai_logger.setLevel(numeric_level)
+        openai_logger.handlers = []  # Remove any default handlers
         
-        logger.info(f"OpenTelemetry log collection initialized with level: {log_level}")
+        # Disable HTTP request logging from the OpenAI SDK
+        # This will prevent those HTTP Request logs from appearing
+        httpx_logger = logging.getLogger("httpx")
+        httpx_logger.setLevel(logging.WARNING)  # Only show warnings and errors
+        
+        # Note: We no longer configure structlog here as it's done in the logging module
+        # This ensures consistent structured logging configuration across the application
+        
+        logger.info("otel.initialized", level=log_level)
         
     except Exception as e:
         logger.error(f"Failed to initialize telemetry: {str(e)}")

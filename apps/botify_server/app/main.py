@@ -5,6 +5,13 @@ import atexit
 from .api.routes import router as chat_router
 from .core.config import settings
 from .core.telemetry import init_telemetry, shutdown_telemetry
+from .core.logging import setup_structured_logging, get_logger
+
+# Initialize structured logging first
+setup_structured_logging(log_level=settings.telemetry_log_level)
+
+# Get a logger for this module
+logger = get_logger(__name__)
 
 # Initialize telemetry
 init_telemetry(
