@@ -6,6 +6,8 @@ from .api.routes import router as chat_router
 from .core.config import settings
 from .core.telemetry import init_telemetry, shutdown_telemetry
 from .core.logging import setup_structured_logging, get_logger
+from .core.metrics import provider 
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 # Initialize structured logging first
 setup_structured_logging(log_level=settings.telemetry_log_level)
@@ -41,6 +43,12 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(chat_router)
+
+# Add FastAPI instrumentation for OpenTelemetry Metrics
+FastAPIInstrumentor.instrument_app(
+    app,
+    meter_provider=provider
+)
 
 
 @app.get("/")
