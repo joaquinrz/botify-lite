@@ -197,31 +197,3 @@ async def chat_stream(request: ChatRequest):
     """
     stream_generator = await _process_chat_stream_request(request.message, request.session_id)
     return EventSourceResponse(stream_generator)
-
-@router.post("/session/cleanup")
-async def cleanup_session(request: SessionRequest):
-    """
-    Cleanup session resources.
-    
-    Args:
-        request: The session request containing the session_id to clean up
-        
-    Returns:
-        dict: Status of the cleanup operation
-    """
-    # Check service availability using our helper function
-    service_error = await _check_service_availability()
-    if service_error:
-        raise HTTPException(
-            status_code=503, 
-            detail="Azure OpenAI service is not properly configured. Please check your credentials.env file."
-        )
-        
-    try:
-        success = await openai_service.cleanup_session(request.session_id)
-        if success:
-            return {"status": "success", "message": f"Session {request.session_id} cleaned up successfully"}
-        else:
-            return {"status": "not_found", "message": f"Session {request.session_id} not found"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error cleaning up session: {str(e)}")
