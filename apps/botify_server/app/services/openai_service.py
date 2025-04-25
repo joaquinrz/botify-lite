@@ -4,7 +4,6 @@ import structlog
 from typing import AsyncGenerator, Dict, Any, Optional
 
 from openai import AsyncAzureOpenAI
-from traceloop.sdk.decorators import task
 
 from ..core.config import settings
 
@@ -48,7 +47,6 @@ class AzureOpenAIService:
         # Store last response IDs for Responses API to maintain threaded context
         self.last_response_id: Dict[str, str] = {}
     
-    @task(name="load_instructions")
     def _load_instructions(self) -> str:
         """Load the assistant instructions from the prompt file."""
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -64,7 +62,6 @@ class AzureOpenAIService:
             2. Your output MUST always be a valid JSON object with voiceSummary and displayResponse properties.
             """
 
-    @task(name="get_chat_response")
     async def get_chat_response(self, prompt: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Single‐turn or continued chat via Responses API. If session_id is provided, previous context is preserved.
@@ -94,7 +91,6 @@ class AzureOpenAIService:
 
         return result
 
-    @task(name="get_chat_response_stream")
     async def get_chat_response_stream(
         self,
         prompt: str,

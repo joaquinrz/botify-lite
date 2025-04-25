@@ -3,7 +3,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Optional, Any
 from sse_starlette.sse import EventSourceResponse
-from traceloop.sdk.decorators import workflow, task
 
 from ..services.openai_service import openai_service
 from ..services.content_safety_service import content_safety_service
@@ -23,11 +22,6 @@ class ChatResponse(BaseModel):
     displayResponse: str
 
 
-class SessionRequest(BaseModel):
-    """Request model for session management."""
-    session_id: str
-
-
 async def _check_service_availability() -> Optional[ChatResponse]:
     """Helper function to check if the OpenAI service is available."""
     if openai_service is None:
@@ -37,7 +31,6 @@ async def _check_service_availability() -> Optional[ChatResponse]:
         )
     return None
 
-@task("check_content_safety")
 async def _check_content_safety(message: str) -> Dict[str, Any]:
     """
     Helper function to check content safety.
@@ -71,7 +64,6 @@ async def _check_content_safety(message: str) -> Dict[str, Any]:
     
     return {"is_safe": False, "response": response}
 
-@workflow("chat")
 async def _process_chat_request(message: str, session_id: Optional[str] = None) -> ChatResponse:
     """
     Process a chat request and return a response.
@@ -121,14 +113,12 @@ async def chat(request: ChatRequest):
     """
     return await _process_chat_request(request.message, request.session_id)
 
-@task("create_error_stream")
 async def _create_error_stream(message: str):
     """Helper function to create a simple error stream."""
     async def error_stream():
         yield message
     return error_stream
 
-@task("create_response_stream")
 async def _create_response_stream(response: ChatResponse):
     """Helper function to create a stream from a ChatResponse."""
     async def response_stream():
@@ -139,7 +129,6 @@ async def _create_response_stream(response: ChatResponse):
     return response_stream
 
 
-@workflow("chat_stream")
 async def _process_chat_stream_request(message: str, session_id: Optional[str] = None):
     """
     Process a streaming chat request and return a response generator.

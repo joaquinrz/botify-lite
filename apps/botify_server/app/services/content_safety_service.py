@@ -2,7 +2,6 @@ import asyncio
 import json
 import httpx
 from typing import Dict, Any, Tuple, List
-from traceloop.sdk.decorators import task
 from ..core.config import settings
 import structlog
 
@@ -157,7 +156,6 @@ class ContentSafetyService:
             "message": message
         }
     
-    @task("is_safe_content")
     async def is_safe_content(self, message: str) -> Tuple[bool, List[str]]:
         """
         Check if content is safe and return a tuple of (is_safe, reasons).
@@ -176,20 +174,6 @@ class ContentSafetyService:
         result = await self.check_content_safety(message)
         return result["is_safe"], result["detected_terms"]
     
-    async def filter_response(self, response: Dict[str, str]) -> Dict[str, str]:
-        """
-        Filter the response content for safety.
-        
-        Args:
-            response: The response to filter
-            
-        Returns:
-            The filtered response
-        """
-        # This is a placeholder for future implementation
-        # Could be extended to also check generated responses
-        return response
-
 
 # Create a service instance to be used throughout the application
 content_safety_service = ContentSafetyService()
