@@ -73,7 +73,7 @@ class ContentSafetyService:
                 harmful_data = self._process_response(harmful_response, "content analysis")
             
             # Analyze the safety responses
-            result = self._analyze_safety_responses(shield_data, harmful_data)
+            result = self._analyze_safety_responses(shield_data, harmful_data, message)
             
             return result
             
@@ -106,7 +106,7 @@ class ContentSafetyService:
             logger.error(f"Error parsing {api_name} response: {str(e)}")
             return {"error": f"Failed to parse API response: {str(e)}"}
     
-    def _analyze_safety_responses(self, shield_response: Dict, harmful_response: Dict) -> Dict[str, Any]:
+    def _analyze_safety_responses(self, shield_response: Dict, harmful_response: Dict, message: str) -> Dict[str, Any]:
         """
         Process and combine the responses from both safety checks.
         
@@ -136,11 +136,13 @@ class ContentSafetyService:
                 if shield_response.get("userPromptAnalysis", {}).get("attackDetected", False):
                     detected_issues.append("jailbreak")
                     messages.append("Detected potential jailbreak attempt")
-                    
-                    # Log with event name as the first argument for better structured logging
-                    logger.warning("SECURITY_ALERT", 
-                                  event_type="jailbreak_attempt_detected",
-                                  is_safe=False)
+                    # Log a clear message for potential jailbreak attempt
+                    logger.warning(
+                        "Detected potential jailbreak attempt",
+                        event_type="jailbreak_attempt_detected",
+                        is_safe=False,
+                        message_content=message[:500] if len(message) > 500 else message
+                    )
             
             # Check for harmful content in content analysis response
             if "categoriesAnalysis" in harmful_response:
@@ -149,11 +151,14 @@ class ContentSafetyService:
                         category_name = category.get("category", "unknown")
                         detected_issues.append(category_name)
                         messages.append(f"Content may be {category_name}")
+                        # Log a clear message for harmful content detection
                         logger.warning(
-                            "safety.harmful_content",
+                            f"Harmful content detected: {category_name}",
+                            event_type="harmful_content_detected",
                             category=category_name,
                             severity=category.get("severity", 0),
-                            detected_issues=detected_issues
+                            detected_issues=detected_issues,
+                            message_content=message[:500] if len(message) > 500 else message
                         )
         
         # Content is safe only if no issues were detected and no API errors occurred

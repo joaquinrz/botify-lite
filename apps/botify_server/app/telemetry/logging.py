@@ -153,20 +153,11 @@ def setup_logging() -> None:
         add_trace_context_processor,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
-        # CallsiteParameterAdder can use different parameter names in different versions
-        # Using a more compatible approach
         structlog.processors.StackInfoRenderer(),
         structlog.processors.EventRenamer("message"),
     ]
-    
-    # Add JSON renderer for production
-    if os.environ.get("ENVIRONMENT", "development") == "production":
-        processors.append(structlog.processors.JSONRenderer())
-    else:
-        # More readable format for development
-        processors.append(
-            structlog.dev.ConsoleRenderer(colors=True)
-        )
+
+    processors.append(structlog.processors.JSONRenderer())
     
     structlog.configure(
         processors=processors,
