@@ -1,12 +1,12 @@
 import os
-import logging
 from typing import Dict, List, ClassVar
 from pydantic import Field, ConfigDict, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv, find_dotenv
+import structlog
 
-# Set up logging
-logger = logging.getLogger(__name__)
+# Set up structured logging
+logger = structlog.get_logger(__name__)
 
 # Try to load from .env file if it exists (for local development)
 # In production Docker environment, env vars are provided directly
@@ -56,6 +56,11 @@ class Settings(BaseSettings):
         default=os.getenv("SERVICE_NAME", "botify-server"),
         description="Service name for telemetry"
     )
+    # Log level for OpenTelemetry logs
+    telemetry_log_level: str = Field(
+        default=os.getenv("TELEMETRY_LOG_LEVEL", "INFO"),
+        description="Log level for OpenTelemetry logs (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
+    )
     
     # Server settings
     host: str = Field(
@@ -92,7 +97,7 @@ class Settings(BaseSettings):
         """Log when important configuration values are missing"""
         if info.field_name in cls.OPENAI_REQUIRED + cls.CONTENT_SAFETY_REQUIRED + cls.VECTOR_STORE_REQUIRED:
             if not v:
-                logger.warning(f"Missing configuration: {info.field_name}")
+                logger.warning("config.missing_value", field=info.field_name)
         return v
     
     def validate_service_config(self, service_name: str) -> Dict[str, bool]:
@@ -127,7 +132,7 @@ class Settings(BaseSettings):
                 "missing": self._get_missing_fields(required_fields)
             }
         else:
-            logger.error(f"Unknown service: {service_name}")
+            logger.error("config.unknown_service", service=service_name)
             return {"configured": False, "missing": ["unknown_service"]}
     
     def _validate_fields(self, fields: List[str]) -> bool:

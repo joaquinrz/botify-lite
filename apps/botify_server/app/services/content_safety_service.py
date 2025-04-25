@@ -1,13 +1,13 @@
 import asyncio
 import json
-import logging
 import httpx
 from typing import Dict, Any, Tuple, List
 from traceloop.sdk.decorators import task
 from ..core.config import settings
+import structlog
 
-# Set up logging
-logger = logging.getLogger(__name__)
+# Set up structured logging
+logger = structlog.get_logger(__name__)
 
 class ContentSafetyService:
     """
@@ -43,8 +43,8 @@ class ContentSafetyService:
         Returns:
             A dictionary with the safety check result
         """
-        logger.info(f"Checking content safety: '{message[:30]}...' (truncated)")
-        
+        logger.debug("message.safety_check", preview=message[:30])
+
         # Prepare request payloads
         shield_payload = {"userPrompt": message, "documents": None}
         harmful_payload = {"text": message}
@@ -126,18 +126,22 @@ class ContentSafetyService:
             # Check for jailbreak attempts in shield response
             if "userPromptAnalysis" in shield_response:
                 if shield_response.get("userPromptAnalysis", {}).get("attackDetected", False):
-                    detected_issues.append("Jailbreak attempt detected")
-                    messages.append("Your message appears to be attempting to manipulate the AI system")
-                    logger.warning("Jailbreak attempt detected by Prompt Shield")
+                    detected_issues.append("jailbreak")
+                    messages.append("Detected potential jailbreak attempt")
+                    logger.warning("safety.jailbreak_detected")
             
             # Check for harmful content in content analysis response
             if "categoriesAnalysis" in harmful_response:
                 for category in harmful_response["categoriesAnalysis"]:
                     if category.get("severity", 0) >= 2:  # Moderate to high severity
                         category_name = category.get("category", "unknown")
-                        detected_issues.append(f"Harmful content detected: {category_name}")
-                        messages.append(f"Content contains potentially {category_name} material")
-                        logger.warning(f"Harmful content detected: {category_name} with severity {category.get('severity')}")
+                        detected_issues.append(category_name)
+                        messages.append(f"Content may be {category_name}")
+                        logger.warning(
+                            "safety.harmful_content",
+                            category=category_name,
+                            severity=category.get("severity", 0)
+                        )
         
         # Content is safe only if no issues were detected and no API errors occurred
         is_safe = not detected_issues and not api_error
@@ -166,7 +170,7 @@ class ContentSafetyService:
             A tuple containing (is_safe, reasons)
         """
         if not settings.content_safety_key or not settings.content_safety_endpoint:
-            logger.warning("Content safety credentials not configured. Skipping check.")
+            logger.warning("safety.credentials_missing")
             return True, []
             
         result = await self.check_content_safety(message)
