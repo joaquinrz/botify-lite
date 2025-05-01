@@ -75,19 +75,31 @@ class AzureOpenAIService:
         # Call the Responses API (non-streaming) with tracing and metrics
         tracer = get_tracer()
         meter = get_meter()
+        # count each OpenAI request
+        if meter:
+            meter.create_counter("openai_api_requests_total").add(1, {"model": self.model_name})
         with tracer.start_as_current_span("openai.chat_response") as span:
+            # perform API call with error counting
             start = time.time()
-            resp = await self.client.responses.create(
-                model=self.model_name,
-                instructions=self.assistant_instructions,
-                input=prompt,
-                previous_response_id=prev_id,
-                tools=[{
-                    "type": "file_search",
-                    "vector_store_ids": [self.vector_store_id],
-                }],
-                stream=False
-            )
+            try:
+                resp = await self.client.responses.create(
+                    model=self.model_name,
+                    instructions=self.assistant_instructions,
+                    input=prompt,
+                    previous_response_id=prev_id,
+                    tools=[{
+                        "type": "file_search",
+                        "vector_store_ids": [self.vector_store_id],
+                    }],
+                    stream=False
+                )
+            except Exception as e:
+                # count errors
+                if meter:
+                    meter.create_counter("openai_api_errors_total").add(
+                        1, {"model": self.model_name, "error": type(e).__name__}
+                    )
+                raise
             duration = time.time() - start
             # Trace attributes
             span.set_attribute("openai.model", getattr(resp, "model", None))
@@ -107,6 +119,15 @@ class AzureOpenAIService:
                     counter.add(usage.total_tokens, {"model": resp.model})
                 hist = meter.create_histogram("openai_api_latency_seconds")
                 hist.record(duration, {"model": resp.model})
+                # record input/output token distributions
+                meter.create_histogram("openai_api_input_tokens").record(
+                    usage.input_tokens if usage else 0,
+                    {"model": resp.model}
+                )
+                meter.create_histogram("openai_api_output_tokens").record(
+                    usage.output_tokens if usage else 0,
+                    {"model": resp.model}
+                )
             # Log response summary
             logger.info(
                 "openai.response",
