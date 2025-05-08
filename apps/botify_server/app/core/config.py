@@ -1,6 +1,6 @@
 import os
 from typing import Dict, List, ClassVar
-from pydantic import Field, ConfigDict, field_validator, ValidationInfo
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv, find_dotenv
 import structlog
@@ -81,25 +81,13 @@ class Settings(BaseSettings):
         default=os.getenv("AZURE_CONTENT_SAFETY_KEY", ""),
         description="Azure Content Safety API key"
     )
-    content_safety_service_name: str = Field(
-        default=os.getenv("AZURE_CONTENT_SAFETY_SERVICE_NAME", ""),
-        description="Azure Content Safety service name"
-    )
+
     content_safety_api_version: str = Field(
         default="2024-09-01",
         description="Azure Content Safety API version"
     )
-    
-    model_config = ConfigDict(case_sensitive=False)
-    
-    @field_validator("*")
-    def log_empty_values(cls, v, info: ValidationInfo):
-        """Log when important configuration values are missing"""
-        if info.field_name in cls.OPENAI_REQUIRED + cls.CONTENT_SAFETY_REQUIRED + cls.VECTOR_STORE_REQUIRED:
-            if not v:
-                logger.warning("config.missing_value", field=info.field_name)
-        return v
-    
+
+
     def validate_service_config(self, service_name: str) -> Dict[str, bool]:
         """
         Validates if all required configuration for a specific service is available.

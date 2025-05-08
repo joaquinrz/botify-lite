@@ -1,10 +1,14 @@
 import asyncio
 import json
+import time
 import httpx
 from typing import Dict, Any, Tuple, List
-from traceloop.sdk.decorators import task
 from ..core.config import settings
 import structlog
+
+# Import telemetry components
+from opentelemetry import trace
+from ..telemetry.decorators import traced, content_safety_telemetry
 
 # Set up structured logging
 logger = structlog.get_logger(__name__)
@@ -33,6 +37,7 @@ class ContentSafetyService:
             "Content-Type": "application/json",
         }
     
+    @content_safety_telemetry
     async def check_content_safety(self, message: str) -> Dict[str, Any]:
         """
         Check if the content is safe using Azure Content Safety API.
@@ -43,31 +48,34 @@ class ContentSafetyService:
         Returns:
             A dictionary with the safety check result
         """
-        logger.debug("message.safety_check", preview=message[:30])
-
-        # Prepare request payloads
-        shield_payload = {"userPrompt": message, "documents": None}
-        harmful_payload = {"text": message}
+        # Log the message being checked (truncated for privacy)
+        logger.debug("message.safety_check")
         
         try:
+            # Prepare request payloads
+            shield_payload = {"userPrompt": message, "documents": None}
+            harmful_payload = {"text": message}
+            
             # Create a client with retry capability and reasonable timeout
             async with httpx.AsyncClient(
-                transport=httpx.AsyncHTTPTransport(retries=3), 
+                transport=httpx.AsyncHTTPTransport(retries=3),
                 timeout=10.0
             ) as client:
                 # Run both checks concurrently
                 shield_response, harmful_response = await asyncio.gather(
-                    client.post(self.prompt_shield_endpoint, json=shield_payload, headers=self.headers),
-                    client.post(self.harmful_text_analysis_endpoint, json=harmful_payload, headers=self.headers),
+                    self._make_api_request(client, "shield", self.prompt_shield_endpoint, shield_payload),
+                    self._make_api_request(client, "harmful", self.harmful_text_analysis_endpoint, harmful_payload),
                     return_exceptions=True
                 )
                 
                 # Process responses to JSON, handling exceptions
                 shield_data = self._process_response(shield_response, "shield")
                 harmful_data = self._process_response(harmful_response, "content analysis")
-                
+            
             # Analyze the safety responses
-            return self._analyze_safety_responses(shield_data, harmful_data)
+            result = self._analyze_safety_responses(shield_data, harmful_data, message)
+            
+            return result
             
         except httpx.TimeoutException:
             logger.error("Content safety API request timed out")
@@ -98,7 +106,7 @@ class ContentSafetyService:
             logger.error(f"Error parsing {api_name} response: {str(e)}")
             return {"error": f"Failed to parse API response: {str(e)}"}
     
-    def _analyze_safety_responses(self, shield_response: Dict, harmful_response: Dict) -> Dict[str, Any]:
+    def _analyze_safety_responses(self, shield_response: Dict, harmful_response: Dict, message: str) -> Dict[str, Any]:
         """
         Process and combine the responses from both safety checks.
         
@@ -128,7 +136,13 @@ class ContentSafetyService:
                 if shield_response.get("userPromptAnalysis", {}).get("attackDetected", False):
                     detected_issues.append("jailbreak")
                     messages.append("Detected potential jailbreak attempt")
-                    logger.warning("safety.jailbreak_detected")
+                    # Log a clear message for potential jailbreak attempt
+                    logger.warning(
+                        "Detected potential jailbreak attempt",
+                        event_type="jailbreak_attempt_detected",
+                        is_safe=False,
+                        message_content=message[:500] if len(message) > 500 else message
+                    )
             
             # Check for harmful content in content analysis response
             if "categoriesAnalysis" in harmful_response:
@@ -137,10 +151,14 @@ class ContentSafetyService:
                         category_name = category.get("category", "unknown")
                         detected_issues.append(category_name)
                         messages.append(f"Content may be {category_name}")
+                        # Log a clear message for harmful content detection
                         logger.warning(
-                            "safety.harmful_content",
+                            f"Harmful content detected: {category_name}",
+                            event_type="harmful_content_detected",
                             category=category_name,
-                            severity=category.get("severity", 0)
+                            severity=category.get("severity", 0),
+                            detected_issues=detected_issues,
+                            message_content=message[:500] if len(message) > 500 else message
                         )
         
         # Content is safe only if no issues were detected and no API errors occurred
@@ -157,7 +175,6 @@ class ContentSafetyService:
             "message": message
         }
     
-    @task("is_safe_content")
     async def is_safe_content(self, message: str) -> Tuple[bool, List[str]]:
         """
         Check if content is safe and return a tuple of (is_safe, reasons).
@@ -176,18 +193,42 @@ class ContentSafetyService:
         result = await self.check_content_safety(message)
         return result["is_safe"], result["detected_terms"]
     
-    async def filter_response(self, response: Dict[str, str]) -> Dict[str, str]:
+    @traced(
+        name="content_safety.api_request",
+        attributes={"component": "content_safety_service", "api_type": "azure_content_safety"}
+    )
+    async def _make_api_request(self, client, check_type, endpoint, payload):
         """
-        Filter the response content for safety.
+        Make an API request with tracing.
         
         Args:
-            response: The response to filter
+            client: The HTTPX client to use
+            check_type: The type of check (shield or harmful)
+            endpoint: The API endpoint
+            payload: The request payload
             
         Returns:
-            The filtered response
+            The API response
         """
-        # This is a placeholder for future implementation
-        # Could be extended to also check generated responses
+        # Add additional attributes to the current span created by the decorator
+        span = trace.get_current_span()
+        if span:
+            # Add HTTP details
+            span.set_attribute("http.url", endpoint)
+            span.set_attribute("http.method", "POST")
+            span.set_attribute("request.size", len(json.dumps(payload)))
+            
+            # Add content safety specific attributes
+            span.set_attribute("content_safety.check_type", check_type)
+
+        # Make the API request
+        response = await client.post(endpoint, json=payload, headers=self.headers)
+        
+        # Record response details in span if it exists
+        if span and response:
+            span.set_attribute("http.status_code", response.status_code)
+            span.set_attribute("response.size", len(response.content))
+            
         return response
 
 

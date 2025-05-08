@@ -122,7 +122,6 @@ The container will build with the same configuration as GitHub Codespaces.
    # Azure Content Safety Settings
    AZURE_CONTENT_SAFETY_ENDPOINT=your_contentSafetyServiceEndpoint_from_deployment_output
    AZURE_CONTENT_SAFETY_KEY=your_content_safety_key_from_azure_portal
-   AZURE_CONTENT_SAFETY_SERVICE_NAME=your_contentSafetyServiceName_from_deployment_output
    
    # Server Settings (for backend)
    SERVER_HOST=0.0.0.0
