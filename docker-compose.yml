@@ -34,6 +34,37 @@ services:
     tty: true
     networks:
       - botify_net
+      
+  tokenservice:
+    build: ./apps/tokenservice
+    container_name: tokenservice
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./apps/credentials.env
+    volumes:
+      - ./apps/tokenservice:/app
+    depends_on:
+      - botify_server
+    networks:
+      - botify_net
+
+  react-frontend:
+    build: ./apps/react-frontend
+    container_name: react-frontend
+    env_file:
+      - ./apps/credentials.env
+    environment:
+      # Override the localhost URLs with Docker service names for container-to-container communication
+      - VITE_BACKEND_API_PREFIX=http://localhost:8000
+      - VITE_TOKEN_SERVICE_PREFIX=http://localhost:8081
+    ports:
+      - "5173:5173"
+    depends_on:
+      - botify_server
+      - tokenservice
+    networks:
+      - botify_net
 
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/nightly/aspire-dashboard:9.2.0

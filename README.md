@@ -10,6 +10,8 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
 - `apps/`: Contains all application components
   - `botify_server/`: Botify Assistant Server (FastAPI backend)
   - `botify_cli/`: Botify CLI client
+  - `tokenservice/`: Token Service for secure Azure token management
+  - `react-frontend/`: React web frontend for browser-based interaction
   - `credentials.env`: Environment variables configuration file
   - `credentials.env.template`: Template file for environment variables
   - `otel_col/`: OpenTelemetry Collector configuration and Dockerfile
@@ -26,9 +28,22 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
   - Complete with unit tests
   - Azure Content Safety integration for content moderation
   - Vector store integration for enhanced knowledge retrieval
+  - Optional token-based authentication
 
 - **Botify CLI Client**:
   - Interactive terminal interface using Rich
+  
+- **Token Service**:
+  - Secure token acquisition for Azure resources
+  - Support for API access tokens and Speech Service tokens
+  - Automatic token refresh
+  - Works with both managed identities and service principals
+  
+- **React Frontend**:
+  - Modern web interface for browser-based chat
+  - Azure Speech Services integration for voice input/output
+  - Streaming responses for real-time interaction
+  - Secure token authentication with the backend API
   - Support for both streaming and non-streaming modes
   - Chat history management
   - Command system for various operations

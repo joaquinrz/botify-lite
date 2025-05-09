@@ -25,8 +25,8 @@ COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin/opentelemetry* /usr/local/bin/
 
 
-# Install the uvicorn server and explicit OpenTelemetry packages
-RUN pip install --no-deps --ignore-installed --no-cache-dir uvicorn && \
+# Install the uvicorn server, PyJWT for token validation, and explicit OpenTelemetry packages
+RUN pip install --no-deps --ignore-installed --no-cache-dir uvicorn PyJWT && \
     opentelemetry-bootstrap -a install
 
 

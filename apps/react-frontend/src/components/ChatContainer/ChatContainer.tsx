@@ -1,0 +1,116 @@
+import React, { useEffect, useRef } from 'react';
+import './ChatContainer.css';
+import InputContainer from '../InputContainer/InputContainer';
+import ProductCard from '../ProductCard/ProductCard';
+import { RecommendedProduct, Message } from '../../App';
+
+interface ChatContainerProps {
+  messages: Message[];
+  input: string;
+  setInput: (value: string) => void;
+  handleKeyPress: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  sendMessage: () => void;
+  handleMicrophoneClick: () => void;
+  isWaitingForBotResponse: boolean;
+  isWaitingForProductRecs: boolean;
+  isListening?: boolean;
+}
+
+const ChatContainer: React.FC<ChatContainerProps> = ({
+  messages,
+  input,
+  setInput,
+  handleKeyPress,
+  sendMessage,
+  handleMicrophoneClick,
+  isWaitingForBotResponse,
+  isWaitingForProductRecs,
+  isListening = false,
+}) => {
+  const lastMessageRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const lastMessageContent = messages[messages.length - 1]?.content;
+  const lastRecommendedProducts = messages[messages.length - 1]?.recommendedProducts;
+
+  useEffect(() => {
+    // Always scroll to the bottom of the messages container when messages, waiting states, or product cards change
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [messages.length, lastMessageContent, lastRecommendedProducts, isWaitingForBotResponse, isWaitingForProductRecs]);
+
+  return (
+    <div className="chat-container">
+      <div className="messages-container">
+        <div className="messages">
+          {messages.map((msg, index) => {
+            const recommendedProducts = msg.recommendedProducts || [];
+            let displayContent = msg.content;
+            // Prevent accidental rendering of [object Object] if content is an object or contains [object Object]
+            if (typeof displayContent !== 'string') {
+              displayContent = '';
+            } else if (displayContent.includes('[object Object]')) {
+              displayContent = displayContent.replace(/\[object Object\]/g, '');
+            }
+            // Show animation below displayResponse if this is the last bot message and streaming is still in progress
+            const isLastBotMsg = index === messages.length - 1 && msg.role === 'bot';
+            return (
+              <div
+                key={index}
+                className={msg.role === 'user' ? 'user-message' : 'bot-message'}
+                ref={index === messages.length - 1 ? lastMessageRef : undefined}
+              >
+                <div className="message-timestamp">
+                  {new Date(msg.timestamp).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </div>
+                <div className="message-content">
+                  {displayContent.split('\n').map((line, i) => <div key={i}>{line}</div>)}
+                  {isLastBotMsg && isWaitingForProductRecs && (
+                    <div className="bot-message waiting-indicator" style={{ marginTop: 8 }}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  )}
+                  {recommendedProducts.length > 0 && (
+                    <div className="product-cards-container">
+                      {recommendedProducts.map((prod: RecommendedProduct, i: number) => (
+                        <ProductCard
+                          key={prod.productNumber + '-' + i}
+                          title={prod.title}
+                          description={prod.description}
+                          productNumber={prod.productNumber}
+                          formCode={prod.formCode}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {isWaitingForBotResponse && (
+            <div className="bot-message waiting-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+      <InputContainer
+        input={input}
+        setInput={setInput}
+        handleKeyPress={handleKeyPress}
+        sendMessage={sendMessage}
+        handleMicrophoneClick={handleMicrophoneClick}
+        isListening={isListening}
+      />
+    </div>
+  );
+};
+
+export default ChatContainer;

@@ -1,10 +1,12 @@
 import logging
+import os
 import time
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router as chat_router
 from .core.config import settings
+from .core.auth import validate_token
 from .telemetry.logging import setup_logging
 from .telemetry.metrics import setup_metrics
 from .telemetry.traces import setup_tracing
@@ -66,16 +68,24 @@ async def telemetry_middleware(request: Request, call_next):
     return response
 
 # Add CORS middleware to allow cross-origin requests
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, you would specify allowed origins
+    allow_origins=allowed_origins,  # Use configured origins from env
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routers
-app.include_router(chat_router)
+# Include API routers with optional auth
+# If ENABLE_AUTH is set to true, all API routes will require authentication
+if os.getenv("ENABLE_AUTH", "false").lower() == "true":
+    app.include_router(
+        chat_router,
+        dependencies=[Depends(validate_token)]
+    )
+else:
+    app.include_router(chat_router)
 
 
 @app.get("/")
