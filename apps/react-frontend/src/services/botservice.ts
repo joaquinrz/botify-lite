@@ -1,5 +1,4 @@
 import { Message } from '../App';
-import { makeStreamingJsonRequest } from "http-streaming-request";
 
 const backendApiPrefix = import.meta.env.VITE_BACKEND_API_PREFIX;
 
@@ -17,7 +16,6 @@ export const sendMessageToBot = async (
   input: string,
   useStreaming: boolean,
   sessionId: string,
-  userId: string, // Keeping this parameter for now, but not using it as botify_server doesn't need it
   onStreamChunk?: (chunk: string) => void,
   onStreamEnd?: (chunk: StreamingBotChunk | null) => void,
 ): Promise<Message | null> => {
@@ -27,32 +25,63 @@ export const sendMessageToBot = async (
 
   try {
     if (useStreaming) {
-      // We'll implement streaming later as requested
-      let lastDisplay = "";
-      let jsonResponse: StreamingBotChunk | null = null;
-      for await (const chunk of makeStreamingJsonRequest<StreamingBotChunk>({
-        url: import.meta.env.VITE_BACKEND_API_PREFIX + "/api/chat/stream",
+      const response = await fetch(apiUrl, {
         method: "POST",
-        payload: {
-          input: { question: input },
-          config: {
-            configurable: {
-              session_id: sessionId,
-              user_id: userId,
-            },
-          },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "text/event-stream"
         },
-      })){
-          jsonResponse=chunk;
-          if (chunk && chunk.displayResponse) {
-            // Only append new text
-            const newText = chunk.displayResponse.slice(lastDisplay.length);
-            if (newText) {
-              lastDisplay = lastDisplay + newText;
-              onStreamChunk?.(newText);
+        body: JSON.stringify({
+          message: input,
+          session_id: sessionId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Stream request failed with status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Failed to get stream reader");
+      }
+
+      // SSE streams contain "data: {...}" lines
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let jsonResponse: StreamingBotChunk | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete lines in buffer
+        let lines = buffer.split('\n');
+        buffer = lines.pop() || ""; // Keep the last (potentially incomplete) line
+        
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const dataStr = line.slice(5).trim();
+            if (dataStr) {
+              // Pass the raw chunk to the handler
+              onStreamChunk?.(dataStr);
+              
+              // If this is valid JSON, save it for the final response
+              if (dataStr.startsWith('{') && dataStr.endsWith('}')) {
+                try {
+                  const parsedJson = JSON.parse(dataStr);
+                  jsonResponse = parsedJson;
+                } catch (e) {
+                  // Not valid JSON, ignore parsing error
+                }
+              }
             }
           }
+        }
       }
+
       onStreamEnd?.(jsonResponse);
       return null; // No single message to return for streaming
     }
@@ -62,9 +91,8 @@ export const sendMessageToBot = async (
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,         // Changed from nested structure to match botify_server
-          session_id: sessionId   // Changed from nested structure to match botify_server
-          // Removed user_id as it's not used by the botify_server
+          message: input,
+          session_id: sessionId 
         }),
       });
 

@@ -1,6 +1,6 @@
 import { sendMessageToBot } from './botservice';
 import { processMessageResponse, playSpeechResponse, handleStreamingChunk, handleStreamingComplete } from '../utils/messageUtils';
-import { Message, RecommendedProduct } from '../types';
+import { RecommendedProduct } from '../types';
 
 export const processUserInput = async (
   userInput: string,
@@ -24,12 +24,11 @@ export const processUserInput = async (
 
   try {
     const sessionId = "session-id-placeholder";
-    const userId = "user-id-placeholder";
     const speechService = await import('./speechService');
 
     if (!useStreaming) {
       // Non-streaming mode
-      const response = await sendMessageToBot(userInput, useStreaming, sessionId, userId);
+      const response = await sendMessageToBot(userInput, useStreaming, sessionId);
       if (response) {
         // Process the response
         const msgWithProducts = processMessageResponse(response);
@@ -48,7 +47,6 @@ export const processUserInput = async (
         userInput,
         useStreaming,
         sessionId,
-        userId,
         // Chunk handler for streaming text
         (chunk: string) => {
           handleStreamingChunk(
@@ -57,8 +55,11 @@ export const processUserInput = async (
             setWaitingForProductRecs
           );
         },
-        // JSON handler for product recommendations
-        async (json: { recommendedProducts?: RecommendedProduct[] } | null) => {
+        // JSON handler for final response
+        async (json: { recommendedProducts?: RecommendedProduct[], displayResponse?: string } | null) => {
+          // Don't update UI with displayResponse here - the handleStreamingComplete will do it
+          // to avoid duplicate messages
+          
           await handleStreamingComplete(
             json,
             updateLastBotMessageWithProducts,
