@@ -7,13 +7,17 @@ import { processUserInput } from './services/messageService';
 import { useMessageManager } from './hooks/useMessageManager';
 import { AppProvider, useAppContext } from './context/AppContext';
 
+/**
+ * AppContent component handles the main UI and logic of the application
+ * Separated from App component to allow usage of context hooks
+ */
 const AppContent = () => {
+  // State management
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const { useStreaming, useTextToSpeech } = useAppContext();
-
-  // Use the custom hook for message management
   const messageManager = useMessageManager();
+  
   const {
     messages,
     isWaitingForBotResponse,
@@ -23,13 +27,13 @@ const AppContent = () => {
     setWaitingForBot
   } = messageManager;
 
+  /**
+   * Process and send the current input to the bot
+   */
   const sendMessage = () => {
     if (!input.trim()) return;
 
     const currentInput = input;
-
-    // Note: The InputContainer component now handles clearing the textarea
-    // when Enter is pressed, but we still need to clear it here for the Send button
     setInput(''); // Clear input for when the send button is clicked
 
     // Make the API call non-blocking for better responsiveness
@@ -43,17 +47,18 @@ const AppContent = () => {
     });
   };
 
+  /**
+   * Handle keyboard events in the input area
+   */
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
 
       // Get the current input value directly from the event target for immediacy
       const currentInput = (e.target as HTMLTextAreaElement).value.trim();
-
-      // Only proceed if there's actual input
       if (!currentInput) return;
 
-      // Clear input field immediately
+      // Clear input field immediately for better UX
       flushSync(() => {
         setInput('');
       });
@@ -70,7 +75,9 @@ const AppContent = () => {
     }
   };
 
-  // Process speech result using the shared message processing function
+  /**
+   * Process speech recognition results
+   */
   const processSpeechResult = async (transcriptText: string) => {
     if (!transcriptText.trim()) return;
 
@@ -82,6 +89,9 @@ const AppContent = () => {
     );
   };
 
+  /**
+   * Handle microphone button click for speech input
+   */
   const handleMicrophoneClick = async () => {
     try {
       const speechService = await import('./services/speechService');
@@ -134,6 +144,9 @@ const AppContent = () => {
   );
 };
 
+/**
+ * Main App component that provides context to the application
+ */
 const App = () => {
   return (
     <AppProvider>

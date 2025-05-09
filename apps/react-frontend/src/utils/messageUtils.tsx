@@ -1,3 +1,5 @@
+import { Message, StreamingResponse, SpeechService } from '../types';
+
 export const processMessageResponse = (response: any) => {
   const processedMessage = { ...response, timestamp: new Date().toISOString() };
 
@@ -17,7 +19,11 @@ export const processMessageResponse = (response: any) => {
   return processedMessage;
 };
 
-export const playSpeechResponse = async (response: any, speechService: any, useTextToSpeech: boolean = true) => {
+export const playSpeechResponse = async (
+  response: Message | StreamingResponse | any, 
+  speechService: any, 
+  useTextToSpeech: boolean = true
+) => {
   if (!useTextToSpeech) {
     console.log('Text to Speech is disabled, skipping audio playback');
     return;
@@ -27,14 +33,13 @@ export const playSpeechResponse = async (response: any, speechService: any, useT
     const voiceSummary = speechService.extractVoiceSummaryFromResponse(response);
     if (voiceSummary) {
       await speechService.synthesizeSpeech(voiceSummary);
-    } else if (response.content) {
+    } else if (response.content && typeof response.content === 'string') {
       await speechService.synthesizeSpeech(response.content);
     }
   } catch (error) {
     console.error('Error playing voice response:', error);
   }
 };
-
 
 // Keep track of accumulated JSON outside the function
 let accumulatedJsonString = '';
@@ -99,7 +104,7 @@ export const handleStreamingChunk = (
 };
 
 export const handleStreamingComplete = async (
-  json: { displayResponse?: string, voiceSummary?: string } | null,
+  json: StreamingResponse | null,
   speechService: any,
   useTextToSpeech: boolean = true
 ) => {

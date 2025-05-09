@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react';
-import { Message } from '../types';
+import { Message, MessageManagerHook } from '../types';
 
-export function useMessageManager() {
+export function useMessageManager(): MessageManagerHook {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isWaitingForBotResponse, setIsWaitingForBotResponse] = useState(false);
-  const botMessageCreatedRef = useRef(false);
+  const botMessageCreatedRef = useRef<boolean>(false);
   
   const addUserMessage = (content: string) => {
     const userMessage: Message = { 

@@ -19,14 +19,16 @@ export const AppContext = createContext<AppContextType>(defaultContextValue);
 export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider: React.FC<{children: React.ReactNode}> = ({ children }: {children: React.ReactNode}) => {
+  // Default streaming to OFF for better initial experience
   const [useStreaming, setUseStreaming] = useState(() => {
     const stored = localStorage.getItem('useStreaming');
     return stored ? JSON.parse(stored) : false;
   });
 
+  // Default text-to-speech to ON for better accessibility
   const [useTextToSpeech, setUseTextToSpeech] = useState(() => {
     const stored = localStorage.getItem('useTextToSpeech');
-    return stored ? JSON.parse(stored) : true; // Default to true for existing users
+    return stored ? JSON.parse(stored) : true;
   });
 
   useEffect(() => {

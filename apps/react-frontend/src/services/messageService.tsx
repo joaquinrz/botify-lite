@@ -1,5 +1,6 @@
-import { sendMessageToBot } from './botservice';
+import { sendMessageToBot, StreamingBotChunk } from './botservice';
 import { playSpeechResponse, handleStreamingChunk, handleStreamingComplete } from '../utils/messageUtils';
+import { MessageManagerHook, StreamingResponse } from '../types';
 
 export const processUserInput = async (
   userInput: string,
@@ -9,7 +10,7 @@ export const processUserInput = async (
     updateOrAddBotMessage,
     resetWaitingStates,
     setWaitingForBot
-  }: any,
+  }: MessageManagerHook,
   useTextToSpeech: boolean = true
 ) => {
   if (!userInput.trim()) return;
@@ -49,7 +50,7 @@ export const processUserInput = async (
           );
         },
         // JSON handler for final response
-        async (json: { displayResponse?: string } | null) => {
+        async (json: StreamingResponse | null) => {
           await handleStreamingComplete(
             json,
             speechService,
