@@ -108,6 +108,7 @@ export const sendMessageToBot = async (
       return {
         role: 'bot',
         content: data.displayResponse, // Direct access to displayResponse field
+        voiceSummary: data.voiceSummary, // include voice summary for TTS
         timestamp: new Date().toISOString()
       };
     }

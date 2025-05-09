@@ -9,6 +9,10 @@ export const processMessageResponse = (response: any) => {
         msgWithProducts.content = parsed.displayResponse;
       }
     }
+    // Carry voiceSummary through for TTS
+    if (parsed?.voiceSummary) {
+      msgWithProducts.voiceSummary = parsed.voiceSummary;
+    }
   } catch {
     // Parsing failed, ignore
   }
