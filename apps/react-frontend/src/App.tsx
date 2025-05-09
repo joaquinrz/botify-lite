@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import './App.css';
 import ChatContainer from './components/ChatContainer/ChatContainer';
@@ -17,13 +17,10 @@ const AppContent = () => {
   const {
     messages,
     isWaitingForBotResponse,
-    isWaitingForProductRecs,
     addUserMessage,
     updateOrAddBotMessage,
-    updateLastBotMessageWithProducts,
     resetWaitingStates,
-    setWaitingForBot,
-    setWaitingForProductRecs
+    setWaitingForBot
   } = messageManager;
 
   const sendMessage = () => {
@@ -131,7 +128,6 @@ const AppContent = () => {
         sendMessage={sendMessage}
         handleMicrophoneClick={handleMicrophoneClick}
         isWaitingForBotResponse={isWaitingForBotResponse}
-        isWaitingForProductRecs={isWaitingForProductRecs}
         isListening={isListening}
       />
     </div>

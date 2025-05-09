@@ -1,4 +1,4 @@
-import { Message } from '../App';
+import { Message } from '../types';
 
 const backendApiPrefix = import.meta.env.VITE_BACKEND_API_PREFIX;
 

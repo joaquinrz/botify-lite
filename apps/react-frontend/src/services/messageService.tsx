@@ -1,6 +1,5 @@
 import { sendMessageToBot } from './botservice';
-import { processMessageResponse, playSpeechResponse, handleStreamingChunk, handleStreamingComplete } from '../utils/messageUtils';
-import { RecommendedProduct } from '../types';
+import { playSpeechResponse, handleStreamingChunk, handleStreamingComplete } from '../utils/messageUtils';
 
 export const processUserInput = async (
   userInput: string,
@@ -8,10 +7,8 @@ export const processUserInput = async (
   {
     addUserMessage,
     updateOrAddBotMessage,
-    updateLastBotMessageWithProducts,
     resetWaitingStates,
-    setWaitingForBot,
-    setWaitingForProductRecs
+    setWaitingForBot
   }: any,
   useTextToSpeech: boolean = true
 ) => {
@@ -31,12 +28,8 @@ export const processUserInput = async (
       // Non-streaming mode
       const response = await sendMessageToBot(userInput, useStreaming, sessionId);
       if (response) {
-        // Process the response
-        const msgWithProducts = processMessageResponse(response);
-
-        // Add the bot message with content (this was missing)
+        // Add the bot message with content
         updateOrAddBotMessage(response.content || response.generatedText || '');
-        updateLastBotMessageWithProducts(msgWithProducts.recommendedProducts);
 
         // Play speech response if enabled
         await playSpeechResponse(response, speechService, useTextToSpeech);
@@ -52,18 +45,13 @@ export const processUserInput = async (
         (chunk: string) => {
           handleStreamingChunk(
             chunk,
-            updateOrAddBotMessage,
-            setWaitingForProductRecs
+            updateOrAddBotMessage
           );
         },
         // JSON handler for final response
-        async (json: { recommendedProducts?: RecommendedProduct[], displayResponse?: string } | null) => {
-          // Don't update UI with displayResponse here - the handleStreamingComplete will do it
-          // to avoid duplicate messages
-          
+        async (json: { displayResponse?: string } | null) => {
           await handleStreamingComplete(
             json,
-            updateLastBotMessageWithProducts,
             speechService,
             useTextToSpeech
           );

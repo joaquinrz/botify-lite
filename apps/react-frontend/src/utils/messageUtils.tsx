@@ -1,23 +1,20 @@
 export const processMessageResponse = (response: any) => {
-  const msgWithProducts = { ...response, timestamp: new Date().toISOString() };
+  const processedMessage = { ...response, timestamp: new Date().toISOString() };
 
   try {
     const parsed = JSON.parse(response.content);
-    if (parsed?.recommendedProducts?.length) {
-      msgWithProducts.recommendedProducts = parsed.recommendedProducts;
-      if (parsed.displayResponse) {
-        msgWithProducts.content = parsed.displayResponse;
-      }
+    if (parsed?.displayResponse) {
+      processedMessage.content = parsed.displayResponse;
     }
     // Carry voiceSummary through for TTS
     if (parsed?.voiceSummary) {
-      msgWithProducts.voiceSummary = parsed.voiceSummary;
+      processedMessage.voiceSummary = parsed.voiceSummary;
     }
   } catch {
     // Parsing failed, ignore
   }
 
-  return msgWithProducts;
+  return processedMessage;
 };
 
 export const playSpeechResponse = async (response: any, speechService: any, useTextToSpeech: boolean = true) => {
@@ -45,8 +42,7 @@ let isCollectingJson = false;
 
 export const handleStreamingChunk = (
   chunk: string,
-  updateOrAddBotMessage: (content: string) => void,
-  setWaitingForProductRecs: () => void
+  updateOrAddBotMessage: (content: string) => void
 ) => {
   // Skip empty chunks
   if (!chunk || chunk.trim() === '') return;
@@ -97,20 +93,13 @@ export const handleStreamingChunk = (
     
     // For non-JSON text chunks or if JSON parsing failed, display directly
     updateOrAddBotMessage(chunk);
-
-    // Check for product recs placeholder
-    if (chunk.includes('RECOMMENDED_PRODUCTS_PLACEHOLDER') ||
-        chunk.includes('Looking for product recommendations...')) {
-      setWaitingForProductRecs();
-    }
   } catch (error) {
     console.error('Error handling streaming chunk:', error);
   }
 };
 
 export const handleStreamingComplete = async (
-  json: { recommendedProducts?: any[], displayResponse?: string, voiceSummary?: string } | null,
-  updateLastBotMessageWithProducts: (products: any[] | undefined) => void,
+  json: { displayResponse?: string, voiceSummary?: string } | null,
   speechService: any,
   useTextToSpeech: boolean = true
 ) => {
@@ -134,9 +123,6 @@ export const handleStreamingComplete = async (
     // Reset the variables used for chunk accumulation
     accumulatedJsonString = '';
     isCollectingJson = false;
-
-    // Add product recommendations
-    updateLastBotMessageWithProducts(json.recommendedProducts);
 
     // Play voice summary if available and Text to Speech is enabled
     if (useTextToSpeech) {

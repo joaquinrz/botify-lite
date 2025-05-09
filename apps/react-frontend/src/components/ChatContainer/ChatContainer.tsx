@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import './ChatContainer.css';
 import InputContainer from '../InputContainer/InputContainer';
-import ProductCard from '../ProductCard/ProductCard';
-import { RecommendedProduct, Message } from '../../App';
+import { Message } from '../../types';
 
 interface ChatContainerProps {
   messages: Message[];
@@ -12,7 +11,6 @@ interface ChatContainerProps {
   sendMessage: () => void;
   handleMicrophoneClick: () => void;
   isWaitingForBotResponse: boolean;
-  isWaitingForProductRecs: boolean;
   isListening?: boolean;
 }
 
@@ -24,27 +22,24 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   sendMessage,
   handleMicrophoneClick,
   isWaitingForBotResponse,
-  isWaitingForProductRecs,
   isListening = false,
 }) => {
   const lastMessageRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const lastMessageContent = messages[messages.length - 1]?.content;
-  const lastRecommendedProducts = messages[messages.length - 1]?.recommendedProducts;
 
   useEffect(() => {
-    // Always scroll to the bottom of the messages container when messages, waiting states, or product cards change
+    // Always scroll to the bottom of the messages container when messages or waiting states change
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [messages.length, lastMessageContent, lastRecommendedProducts, isWaitingForBotResponse, isWaitingForProductRecs]);
+  }, [messages.length, lastMessageContent, isWaitingForBotResponse]);
 
   return (
     <div className="chat-container">
       <div className="messages-container">
         <div className="messages">
           {messages.map((msg, index) => {
-            const recommendedProducts = msg.recommendedProducts || [];
             let displayContent = msg.content;
             // Prevent accidental rendering of [object Object] if content is an object or contains [object Object]
             if (typeof displayContent !== 'string') {
@@ -52,8 +47,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
             } else if (displayContent.includes('[object Object]')) {
               displayContent = displayContent.replace(/\[object Object\]/g, '');
             }
-            // Show animation below displayResponse if this is the last bot message and streaming is still in progress
-            const isLastBotMsg = index === messages.length - 1 && msg.role === 'bot';
             return (
               <div
                 key={index}
@@ -65,27 +58,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
                 </div>
                 <div className="message-content">
                   {displayContent.split('\n').map((line, i) => <div key={i}>{line}</div>)}
-                  {isLastBotMsg && isWaitingForProductRecs && (
-                    <div className="bot-message waiting-indicator" style={{ marginTop: 8 }}>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  )}
-                  {recommendedProducts.length > 0 && (
-                    <div className="product-cards-container">
-                      {recommendedProducts.map((prod: RecommendedProduct, i: number) => (
-                        <ProductCard
-                          key={prod.productNumber + '-' + i}
-                          title={prod.title}
-                          description={prod.description}
-                          productNumber={prod.productNumber}
-                          formCode={prod.formCode}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             );

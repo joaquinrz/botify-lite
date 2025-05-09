@@ -1,10 +1,9 @@
 import { useState, useRef } from 'react';
-import { Message, RecommendedProduct } from '../types';
+import { Message } from '../types';
 
 export function useMessageManager() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isWaitingForBotResponse, setIsWaitingForBotResponse] = useState(false);
-  const [isWaitingForProductRecs, setIsWaitingForProductRecs] = useState(false);
   const botMessageCreatedRef = useRef(false);
   
   const addUserMessage = (content: string) => {
@@ -50,56 +49,23 @@ export function useMessageManager() {
     });
   };
   
-  const updateLastBotMessageWithProducts = (products: RecommendedProduct[] | undefined) => {
-    setMessages(prev => {
-      const updatedMessages = [...prev];
-      // Find the last bot message
-      let lastBotIdx = -1;
-      for (let i = updatedMessages.length - 1; i >= 0; i--) {
-        if (updatedMessages[i].role === 'bot') {
-          lastBotIdx = i;
-          break;
-        }
-      }
-      
-      if (lastBotIdx !== -1) {
-        // Attach the recommendedProducts array to the message for rendering product cards
-        updatedMessages[lastBotIdx] = {
-          ...updatedMessages[lastBotIdx],
-          recommendedProducts: products || []
-        };
-      }
-      return updatedMessages;
-    });
-  };
-  
   const resetWaitingStates = () => {
     setIsWaitingForBotResponse(false);
-    setIsWaitingForProductRecs(false);
   };
   
   const setWaitingForBot = () => {
     setIsWaitingForBotResponse(true);
-    setIsWaitingForProductRecs(false);
     botMessageCreatedRef.current = false;
-  };
-  
-  const setWaitingForProductRecs = () => {
-    setIsWaitingForBotResponse(false);
-    setIsWaitingForProductRecs(true);
   };
 
   return {
     messages,
     isWaitingForBotResponse,
-    isWaitingForProductRecs,
     botMessageCreatedRef,
     addUserMessage,
     addBotMessage,
     updateOrAddBotMessage,
-    updateLastBotMessageWithProducts,
     resetWaitingStates,
-    setWaitingForBot,
-    setWaitingForProductRecs
+    setWaitingForBot
   };
 }

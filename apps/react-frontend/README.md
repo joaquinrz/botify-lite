@@ -40,12 +40,12 @@ This will start the Vite development server. By default, the app will be availab
 
 - Type your message in the chat input and press Enter or click Send.
 - Toggle streaming mode in the settings drawer (top right gear icon).
-- When the bot recommends products, they will appear as cards below the response.
+- Toggle text-to-speech functionality for voice output of responses.
 
 ## Project Structure
 
 - `src/` - Main source code
-  - `components/` - React components (ChatContainer, ProductCard, etc.)
+  - `components/` - React components (ChatContainer, InputContainer, etc.)
   - `services/` - API and bot service logic
   - `App.tsx` - Main app logic
 - `.env` - Environment variables for local development
