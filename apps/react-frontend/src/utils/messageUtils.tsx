@@ -20,7 +20,12 @@ export const processMessageResponse = (response: any) => {
   return msgWithProducts;
 };
 
-export const playSpeechResponse = async (response: any, speechService: any) => {
+export const playSpeechResponse = async (response: any, speechService: any, useTextToSpeech: boolean = true) => {
+  if (!useTextToSpeech) {
+    console.log('Text to Speech is disabled, skipping audio playback');
+    return;
+  }
+
   try {
     const voiceSummary = speechService.extractVoiceSummaryFromResponse(response);
     if (voiceSummary) {
@@ -106,7 +111,8 @@ export const handleStreamingChunk = (
 export const handleStreamingComplete = async (
   json: { recommendedProducts?: any[], displayResponse?: string, voiceSummary?: string } | null,
   updateLastBotMessageWithProducts: (products: any[] | undefined) => void,
-  speechService: any
+  speechService: any,
+  useTextToSpeech: boolean = true
 ) => {
   if (json !== null) {
     console.log('Streaming completed with JSON:', json);
@@ -132,14 +138,18 @@ export const handleStreamingComplete = async (
     // Add product recommendations
     updateLastBotMessageWithProducts(json.recommendedProducts);
 
-    // Play voice summary if available
-    try {
-      const voiceSummary = speechService.extractVoiceSummaryFromResponse(json);
-      if (voiceSummary) {
-        await speechService.synthesizeSpeech(voiceSummary);
+    // Play voice summary if available and Text to Speech is enabled
+    if (useTextToSpeech) {
+      try {
+        const voiceSummary = speechService.extractVoiceSummaryFromResponse(json);
+        if (voiceSummary) {
+          await speechService.synthesizeSpeech(voiceSummary);
+        }
+      } catch (speechError) {
+        console.error('Error playing voice response:', speechError);
       }
-    } catch (speechError) {
-      console.error('Error playing voice response:', speechError);
+    } else {
+      console.log('Text to Speech is disabled, skipping audio playback');
     }
   }
 };

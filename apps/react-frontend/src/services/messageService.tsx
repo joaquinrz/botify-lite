@@ -12,7 +12,8 @@ export const processUserInput = async (
     resetWaitingStates,
     setWaitingForBot,
     setWaitingForProductRecs
-  }: any
+  }: any,
+  useTextToSpeech: boolean = true
 ) => {
   if (!userInput.trim()) return;
 
@@ -37,8 +38,8 @@ export const processUserInput = async (
         updateOrAddBotMessage(response.content || response.generatedText || '');
         updateLastBotMessageWithProducts(msgWithProducts.recommendedProducts);
 
-        // Play speech response
-        await playSpeechResponse(response, speechService);
+        // Play speech response if enabled
+        await playSpeechResponse(response, speechService, useTextToSpeech);
       }
       resetWaitingStates();
     } else {
@@ -63,7 +64,8 @@ export const processUserInput = async (
           await handleStreamingComplete(
             json,
             updateLastBotMessageWithProducts,
-            speechService
+            speechService,
+            useTextToSpeech
           );
           resetWaitingStates();
         }
