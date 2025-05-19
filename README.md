@@ -1,6 +1,6 @@
 # Botify Lite Assistant API Application
 
-A complete solution for interacting with Azure OpenAI, consisting of a FastAPI backend server and a CLI chat client application.
+A complete solution for interacting with Azure OpenAI, consisting of a FastAPI backend server, a web-based React frontend, and a CLI chat client application.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fjoaquinrz%2Fbotify-lite%2Fmain%2Fazuredeploy.json)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/joaquinrz/botify-lite)
@@ -35,17 +35,19 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
   
 - **Token Service**:
   - Secure token acquisition for Azure resources
-  - Support for API access tokens and Speech Service tokens
-  - Automatic token refresh
+  - Support for API access tokens and Azure Speech Service tokens
+  - Automatic token refresh with configurable expiration
   - Works with both managed identities and service principals
+  - Lightweight REST API for client token requests
   
 - **React Frontend**:
-  - Modern web interface for browser-based chat
+  - Modern, responsive web interface for browser-based chat
   - Azure Speech Services integration for voice input/output
+  - Text-to-speech and speech-to-text capabilities
   - Streaming responses for real-time interaction
   - Secure token authentication with the backend API
   - Support for both streaming and non-streaming modes
-  - Chat history management
+  - Persistent chat history management
   - Command system for various operations
 
 - **Observability & Telemetry**:
@@ -108,14 +110,14 @@ The container will build with the same configuration as GitHub Codespaces.
 2. Complete the Azure deployment form with your preferred settings.
 3. After the deployment completes, check the outputs section of the deployment for:
    - `openAIServiceEndpoint`: The endpoint URL for your Azure OpenAI service
-   - `contentSafetyServiceEndpoint`: The endpoint URL for your Azure Content Safety service
    - `contentSafetyServiceName`: The name of your Azure Content Safety service
 
-### 2. Get Your API Key
+### 2. Get Your API Keys
 
 1. Navigate to your newly deployed Azure OpenAI resource in the Azure portal
 2. Go to "Keys and Endpoint" in the left menu
 3. Copy one of the available keys (either KEY 1 or KEY 2)
+4. Repeat the process for the Content Safety service if you plan to use content moderation
 
 ### 3. Configure Environment Variables
 
@@ -128,138 +130,85 @@ The container will build with the same configuration as GitHub Codespaces.
 2. Update your `apps/credentials.env` file with the information from your deployment:
 
    ```bash
-   # Azure OpenAI Settings
+   # Azure OpenAI Configuration
    AZURE_OPENAI_ENDPOINT=your_openAIServiceEndpoint_from_deployment_output
    AZURE_OPENAI_API_KEY=your_api_key_from_azure_portal
-   AZURE_OPENAI_API_VERSION=2024-05-01-preview
-   AZURE_OPENAI_MODEL_NAME=gpt-4o-mini
-
-   # Azure Content Safety Settings
+   AZURE_OPENAI_API_VERSION=2024-07-01
+   AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
+   
+   # Azure Content Safety (Optional but recommended)
    AZURE_CONTENT_SAFETY_ENDPOINT=your_contentSafetyServiceEndpoint_from_deployment_output
    AZURE_CONTENT_SAFETY_KEY=your_content_safety_key_from_azure_portal
    
-   # Server Settings (for backend)
-   SERVER_HOST=0.0.0.0
-   SERVER_PORT=8000
+   # Azure Speech Service (Optional, for voice capabilities)
+   AZURE_SPEECH_KEY=your_speech_service_key
+   AZURE_SPEECH_REGION=eastus
+   
+   # Vector Store Settings (Optional, for knowledge base)
 
-   # Telemetry Settings
+  # Telemetry Settings
    TELEMETRY_ENABLED=false
    OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
    AZURE_APPINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
-
-   # Client Settings (for CLI)
-   API_BASE_URL=http://localhost:8000
-   USE_STREAMING=true
-   CHAT_HISTORY_FILE=./chat_history.txt
-   ```
-
-Replace:
-
-- `your_openAIServiceEndpoint_from_deployment_output` with the OpenAI endpoint URL from the deployment outputs
-- `your_api_key_from_azure_portal` with the OpenAI API key from the Azure portal
-- `your_contentSafetyServiceEndpoint_from_deployment_output` with the Content Safety endpoint from the deployment outputs
-- `your_contentSafetyServiceName_from_deployment_output` with the Content Safety service name from the deployment outputs
-- `your_content_safety_key_from_azure_portal` with the Content Safety API key from the Azure portal
-
-The model name should already be correctly set to "gpt-4o-mini" as specified in the deployment template.
-
-Without valid credentials, the application will display connection errors when attempting to interact with the AI service.
-
-### 4. Create and Configure Vector Store
-
-The application uses an Azure OpenAI vector store to provide information to the assistant. Follow these steps to create and configure your vector store:
-
-1. Make sure you have configured your environment variables in the previous step
-
-2. Run the vector store creation script:
-
-   ```bash
-   # Install dependencies
-   poetry install
-
-   # Run the script with Poetry
-   poetry run python scripts/create_vector_store.py
-   ```
-
-3. The script will:
-   - Locate all JSON files in the `data/` directory
-   - Create a new vector store in your Azure OpenAI service
-   - Upload all JSON files to the vector store
-   - Display the vector store ID when complete
-
-4. Copy the vector store ID from the script output and add it to your `apps/credentials.env` file:
-
-   ```bash
-   # Add this line to your credentials.env file
    AZURE_OPENAI_VECTOR_STORE_ID=your_vector_store_id
    ```
 
-This step is essential for the assistant to access knowledge from the vector store.
+Replace the placeholder values with your actual Azure service details.
 
-### 5. Running the Applications using Poetry
+### 4. Create and Configure Vector Store (Optional)
 
-#### Prepare the Poetry virtual environment
+To use knowledge retrieval features, create a vector store from the provided JSON files:
 
 ```bash
 # Install dependencies
 poetry install
 
-# Load environment variables
-export $(grep -v '^#' apps/credentials.env | xargs) 2>/dev/null || true
+# Run the vector store creation script
+poetry run create-vector-store
 ```
 
-#### Run the Server Application
+The script will create a vector store and display its ID, which should be added to your `apps/credentials.env` file.
+
+### 5. Running the Application
+
+You can run the application using Docker Compose, which will start all services:
 
 ```bash
-# Navigate to the server directory
-cd apps/botify_server
-
-# Install dependencies
-poetry install
-
-# Start the server
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+docker-compose up
 ```
 
-#### Run the CLI Application in a new terminal
+Or run individual components:
 
 ```bash
-# Navigate to the CLI directory
-cd apps/botify_cli
+# Run just the backend server
+docker-compose up botify_server
 
-# Install dependencies
-poetry install
+# Run the CLI client
+docker-compose up botify_cli
 
-# Start the CLI
-poetry run python -m app.main
+# Run the web frontend and its dependencies
+docker-compose up react-frontend botify_server tokenservice
 ```
 
-### 6. Running the Applications using Docker
+### 6. Accessing the Web Interface
 
-For a containerized setup using Docker Compose:
+Once the application is running, you can access:
+
+- Web Interface: [http://localhost:5173](http://localhost:5173)
+- API Backend: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Token Service: [http://localhost:8081/docs](http://localhost:8081/docs)
+
+### 7. Using the CLI Client
+
+The CLI client provides an interactive terminal interface:
 
 ```bash
-# Build and start the containers
-docker-compose up --build
+# Using poetry
+poetry run python -m botify_cli.app.main
 
-# To run in detached mode
-docker-compose up -d
-
-# Access the CLI client in a running container
-docker exec -it botify_cli python -m app.main
+# Using Docker
+docker-compose run botify_cli
 ```
-
-## Using the CLI Chat Client
-
-The CLI client provides an interactive terminal interface for chatting with the Azure OpenAI service.
-
-### Commands
-
-- Type your message and press Enter to chat with the AI
-- `/history`: View your recent chat history
-- `/clear`: Clear chat history
-- `/stream on` or `/stream off`: Toggle streaming mode
-- `/exit` or `/quit`: Exit the application
 
 ## Telemetry and Observability
 
