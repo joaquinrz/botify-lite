@@ -11,7 +11,8 @@ export const processUserInput = async (
     resetWaitingStates,
     setWaitingForBot
   }: MessageManagerHook,
-  useTextToSpeech: boolean = true
+  useTextToSpeech: boolean = true,
+  sessionId: string
 ) => {
   if (!userInput.trim()) return;
 
@@ -22,7 +23,6 @@ export const processUserInput = async (
   setWaitingForBot();
 
   try {
-    const sessionId = "session-id-placeholder";
     const speechService = await import('./speechService');
 
     if (!useStreaming) {
