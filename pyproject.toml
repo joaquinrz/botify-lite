@@ -11,6 +11,7 @@ python = ">=3.9,<3.14"
 openai = "^1.20.0"
 botify_server = {path = "apps/botify_server", develop = true}
 botify_cli = {path = "apps/botify_cli", develop = true}
+nemoguardrails = "^0.14.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"

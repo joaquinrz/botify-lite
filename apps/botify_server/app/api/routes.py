@@ -5,7 +5,9 @@ from typing import Dict, Optional, Any
 from sse_starlette.sse import EventSourceResponse
 
 from ..services.openai_service import openai_service
-from ..services.content_safety_service import content_safety_service
+# Commented out Azure Content Safety service for NeMo Guardrails spike
+# from ..services.content_safety_service import content_safety_service
+from ..services.nemo_guardrails_service import nemo_guardrails_service
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -33,33 +35,33 @@ async def _check_service_availability() -> Optional[ChatResponse]:
 
 async def _check_content_safety(message: str) -> Dict[str, Any]:
     """
-    Helper function to check content safety.
+    Helper function to check content safety using NeMo Guardrails.
     
     Returns:
         Dict with keys:
         - is_safe: bool - Whether the content is safe
         - response: Optional[ChatResponse] - Response to return if content is not safe, None if safe
     """
-    # Check content safety
-    is_safe, reasons = await content_safety_service.is_safe_content(message)
+    # Check content safety with NeMo Guardrails (replacing Azure Content Safety)
+    is_safe, reasons = await nemo_guardrails_service.is_safe_content(message)
     
     if is_safe:
         return {"is_safe": True, "response": None}
     
     # Content is not safe, prepare appropriate response
-    is_jailbreak = any("Jailbreak attempt" in reason for reason in reasons)
+    is_jailbreak = any("jailbreak" in reason.lower() for reason in reasons)
     
     if is_jailbreak:
         # Specific message for jailbreak attempts
         response = ChatResponse(
-            voiceSummary="Jailbreak Attempt Detected",
-            displayResponse="Your message was not processed as it appears to be attempting to manipulate the AI system"
+            voiceSummary="Request Not Allowed",
+            displayResponse="I cannot ignore my guidelines or pretend to be something I'm not."
         )
     else:
         # General message for other harmful content
         response = ChatResponse(
-            voiceSummary="Content Safety Alert",
-            displayResponse=f"Your message was not processed for safety reasons: {'; '.join(reasons)}"
+            voiceSummary="Content Not Allowed", 
+            displayResponse="I cannot provide information on harmful or illegal activities."
         )
     
     return {"is_safe": False, "response": response}

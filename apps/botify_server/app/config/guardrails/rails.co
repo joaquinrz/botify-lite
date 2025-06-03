@@ -1,0 +1,47 @@
+# Define the guardrail flows
+
+define flow check jailbreak attempts
+  if $user_message contains jailbreak_patterns
+    bot refuse jailbreak
+    stop
+
+define flow check harmful content requests  
+  if $user_message contains harmful_patterns
+    bot refuse harmful request
+    stop
+
+define flow check inappropriate language
+  if $user_message contains inappropriate_language
+    bot ask for appropriate language
+    stop
+
+# Bot responses for blocked content
+define bot refuse jailbreak
+  "I'm designed to be helpful, harmless, and honest. I cannot and will not ignore my guidelines or pretend to be something I'm not."
+
+define bot refuse harmful request
+  "I cannot provide assistance with potentially harmful or illegal activities. Is there something else I can help you with?"
+
+define bot ask for appropriate language
+  "I'd be happy to help, but please rephrase your message using appropriate language."
+
+# Define patterns (these would be loaded from external files in production)
+define list jailbreak_patterns
+  - "ignore previous instructions"
+  - "forget everything above"  
+  - "act as if you are"
+  - "pretend to be"
+  - "jailbreak"
+  - "DAN mode"
+  - "developer mode"
+
+define list harmful_patterns
+  - "how to make bombs"
+  - "how to hurt people"
+  - "illegal activities"
+  - "hack into"
+  - "create malware"
+
+define list inappropriate_language
+  - offensive_terms
+  - hate_speech_terms

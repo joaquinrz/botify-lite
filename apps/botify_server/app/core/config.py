@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     
     # Model settings
     model_name: str = Field(
-        default=os.getenv("AZURE_OPENAI_MODEL_NAME", "gpt-4o"),
+        default=os.getenv("AZURE_OPENAI_MODEL_NAME", "gpt-4.1-mini"),
         description="Model deployment name in Azure"
     )
     

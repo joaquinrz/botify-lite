@@ -1,6 +1,12 @@
-FROM python:3.13-slim as builder
+FROM python:3.12-slim as builder
 
 WORKDIR /app
+
+# Install build dependencies including C++ compiler for packages like annoy
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN pip install --no-cache-dir poetry==1.8
@@ -15,13 +21,13 @@ RUN poetry config virtualenvs.create false && \
 
 
 # Start from a clean, minimal base image
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 # Set the working directory
 WORKDIR /app
 
 # Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin/opentelemetry* /usr/local/bin/
 
 
