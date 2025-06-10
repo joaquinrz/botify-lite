@@ -86,6 +86,12 @@ class Settings(BaseSettings):
         default="2024-09-01",
         description="Azure Content Safety API version"
     )
+    
+    # Content safety strategy setting
+    content_safety_strategy: str = Field(
+        default=os.getenv("CONTENT_SAFETY_STRATEGY", "AZURE"),
+        description="Content safety strategy to use: AZURE or NEMO (default: AZURE)"
+    )
 
 
     def validate_service_config(self, service_name: str) -> Dict[str, bool]:

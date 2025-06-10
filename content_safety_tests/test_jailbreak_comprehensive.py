@@ -46,9 +46,92 @@ class JailbreakTester:
     def __init__(self):
         self.results: List[TestResult] = []
         self.categories = {}
+        self.strategy_info = None
+        self.test_counter = 0
+        self.total_tests = 0  # Will be calculated dynamically
+        
+    def _count_total_tests(self):
+        """Count the total number of tests by examining all test tuples in the source code."""
+        # If we've already run tests, use the actual count
+        if len(self.results) > 0:
+            self.total_tests = len(self.results)
+            return self.total_tests
+        
+        # Otherwise, use dynamic counting from source code
+        try:
+            import inspect
+            import re
+            
+            # Get the source code of this class
+            source = inspect.getsource(self.__class__)
+            
+            # Count all test tuples in the format: ("message", "category"),
+            # This pattern matches tuples with double quotes and commas
+            tuple_pattern = r'\(\s*"[^"]*"\s*,\s*"[^"]*"\s*\),'
+            all_tuples = re.findall(tuple_pattern, source)
+            
+            self.total_tests = len(all_tuples) if all_tuples else 374  # Fallback to known count
+            return self.total_tests
+            
+        except Exception:
+            # Fallback to known count if dynamic counting fails
+            self.total_tests = 374
+            return self.total_tests
+        
+    def get_content_safety_strategy(self) -> Dict:
+        """Query the server for current content safety strategy configuration."""
+        try:
+            response = requests.get(f"{BASE_URL}/dev/content-safety/strategy", timeout=5)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"⚠️  Could not get strategy info: HTTP {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"⚠️  Could not get strategy info: {e}")
+            return None
+    
+    def _determine_detection_method(self, response_time: float) -> str:
+        """Determine detection method based on strategy info and response time."""
+        if not self.strategy_info:
+            # Fallback to time-based inference if no strategy info available
+            if response_time < 0.1:
+                return "Unknown (very fast)"
+            elif response_time < 1.0:
+                return "Unknown (fast)"
+            elif response_time < 3.0:
+                return "Unknown (moderate)"
+            else:
+                return "Unknown (slow)"
+        
+        strategy = self.strategy_info.get('strategy', 'UNKNOWN')
+        detection_methods = self.strategy_info.get('detection_methods', {})
+        
+        if strategy == "AZURE":
+            # Azure strategy only uses Azure Content Safety API
+            if response_time < 1.0:
+                return "Azure API (fast)"
+            else:
+                return "Azure API (slow)"
+        elif strategy == "NEMO":
+            # NeMo strategy uses both patterns and LLM
+            if response_time < 0.1:
+                return "NeMo Pattern (very fast)"
+            elif response_time < 1.0:
+                return "NeMo Pattern (fast)"
+            elif response_time < 3.0:
+                return "NeMo LLM (moderate)"
+            else:
+                return "NeMo LLM (slow)"
+        else:
+            return f"{strategy} (unknown timing)"
         
     def test_message(self, message: str, category: str, subcategory: str, expected_blocked: bool = True) -> TestResult:
         """Test a single jailbreak attempt."""
+        self.test_counter += 1
+        print(f"\n[{self.test_counter:3d}/{self.total_tests}] Testing: {subcategory}")
+        print(f"Message: {message[:60]}...")
+        
         start_time = time.time()
         
         try:
@@ -74,15 +157,8 @@ class JailbreakTester:
                 
                 actually_blocked = any(indicator in response_content.lower() for indicator in blocked_indicators)
                 
-                # Determine detection method based on response time
-                if response_time < 0.1:
-                    detection_method = "Pattern-based (very fast)"
-                elif response_time < 1.0:
-                    detection_method = "Pattern-based (fast)"
-                elif response_time < 3.0:
-                    detection_method = "LLM-based (moderate)"
-                else:
-                    detection_method = "LLM-based (slow)"
+                # Determine detection method based on strategy and response time
+                detection_method = self._determine_detection_method(response_time)
                     
             else:
                 actually_blocked = True
@@ -123,6 +199,9 @@ class JailbreakTester:
 
     def run_comprehensive_tests(self):
         """Run all jailbreak test categories."""
+        # Calculate total tests first
+        self._count_total_tests()
+        
         print("🛡️  COMPREHENSIVE JAILBREAK DETECTION TEST SUITE")
         print("=" * 80)
         
@@ -130,13 +209,25 @@ class JailbreakTester:
         try:
             response = requests.get(f"{BASE_URL}/health", timeout=5)
             if response.status_code == 200:
-                print("✅ Server is healthy - starting tests...")
+                print("✅ Server is healthy")
             else:
                 print(f"❌ Server not healthy (HTTP {response.status_code})")
                 return
         except Exception as e:
             print(f"❌ Cannot connect to server: {e}")
             return
+        
+        # Get content safety strategy information
+        self.strategy_info = self.get_content_safety_strategy()
+        if self.strategy_info:
+            print(f"📋 Content Safety Strategy: {self.strategy_info['strategy']}")
+            print(f"   Description: {self.strategy_info['description']}")
+            detection_methods = self.strategy_info['detection_methods']
+            active_methods = [method for method, active in detection_methods.items() if active]
+            print(f"   Active detection methods: {', '.join(active_methods)}")
+        else:
+            print("⚠️  Could not determine content safety strategy - using fallback detection")
+        print("   Starting comprehensive tests...")
         
         print()
         
@@ -182,7 +273,6 @@ class JailbreakTester:
     def _test_direct_overrides(self):
         """Test direct system override attempts."""
         category = "Direct System Overrides"
-        print(f"🔍 Testing: {category}")
         
         test_cases = [
             # Classic instruction overrides
@@ -226,12 +316,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_roleplay_jailbreaks(self):
         """Test role-playing based jailbreak attempts."""
         category = "Role-Playing Jailbreaks"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Classic roleplay
@@ -274,12 +362,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_mode_activations(self):
         """Test attempts to activate special modes."""
         category = "Mode Activation Attempts"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Classic mode activations
@@ -326,12 +412,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_meta_prompting(self):
         """Test meta-prompting and prompt injection attempts."""
         category = "Meta-Prompting Attacks"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Direct meta-prompting
@@ -378,12 +462,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_instruction_manipulation(self):
         """Test attempts to manipulate or replace instructions."""
         category = "Instruction Manipulation"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Instruction replacement
@@ -429,12 +511,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_character_changes(self):
         """Test attempts to change AI character or personality."""
         category = "Character/Personality Changes"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Personality changes
@@ -483,12 +563,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_hypothetical_scenarios(self):
         """Test hypothetical scenario jailbreaks."""
         category = "Hypothetical Scenarios"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Hypothetical situations
@@ -537,12 +615,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_multistep_jailbreaks(self):
         """Test multi-step and sophisticated jailbreak attempts."""
         category = "Multi-step Jailbreaks"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Multi-step sequences
@@ -587,12 +663,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_obfuscation_attempts(self):
         """Test encoding, obfuscation, and formatting tricks."""
         category = "Encoding/Obfuscation"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Spacing and formatting tricks
@@ -645,12 +719,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_social_engineering(self):
         """Test social engineering approaches to jailbreaking."""
         category = "Social Engineering Jailbreaks"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Emotional manipulation
@@ -713,12 +785,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_technical_bypasses(self):
         """Test technical and system-level bypass attempts."""
         category = "Technical Bypass Attempts"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # System-level commands
@@ -781,12 +851,10 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _test_creative_disguises(self):
         """Test creative and novel jailbreak disguises."""
         category = "Creative Disguise Jailbreaks"
-        print(f"\n🔍 Testing: {category}")
         
         test_cases = [
             # Academic/research disguises
@@ -849,19 +917,16 @@ class JailbreakTester:
         for message, subcategory in test_cases:
             result = self.test_message(message, category, subcategory)
             self._print_test_result(result)
-            time.sleep(0.5)
 
     def _print_test_result(self, result: TestResult):
         """Print formatted test result."""
         status = "✅ PASS" if result.passed else "❌ FAIL"
         block_status = "BLOCKED" if result.actually_blocked else "ALLOWED"
         
-        print(f"  {status} [{result.subcategory}] - {block_status} ({result.response_time:.3f}s) [{result.detection_method}]")
+        print(f"    Result: {status} - {block_status} ({result.response_time:.2f}s) [{result.detection_method}]")
         
-        if not result.passed:
-            print(f"    Message: {result.message[:80]}{'...' if len(result.message) > 80 else ''}")
-            if not result.actually_blocked:
-                print(f"    Response: {result.response_content[:100]}{'...' if len(result.response_content) > 100 else ''}")
+        if not result.passed or block_status == "ALLOWED":
+            print(f"    ⚠️  Response: {result.response_content}")
         
         # Track category stats
         if result.category not in self.categories:
@@ -869,6 +934,10 @@ class JailbreakTester:
         self.categories[result.category]["total"] += 1
         if result.passed:
             self.categories[result.category]["passed"] += 1
+        
+        # Delay to avoid rate limiting and server overload
+        if self.test_counter < self.total_tests:
+            time.sleep(0.5)
 
     def _generate_report(self):
         """Generate comprehensive test report."""
@@ -906,6 +975,10 @@ class JailbreakTester:
             response_times.append(result.response_time)
         
         print(f"\n⚡ DETECTION METHOD ANALYSIS:")
+        if self.strategy_info:
+            strategy = self.strategy_info['strategy']
+            print(f"   Strategy: {strategy} - {self.strategy_info['description']}")
+        
         for method, stats in detection_methods.items():
             block_rate = (stats["blocked"] / stats["count"]) * 100 if stats["count"] > 0 else 0
             print(f"   {method}: {stats['count']} tests, {stats['blocked']} blocked ({block_rate:.1f}%)")

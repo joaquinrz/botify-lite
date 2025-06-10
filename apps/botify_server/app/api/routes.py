@@ -1,15 +1,14 @@
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
 from typing import Dict, Optional, Any
 from sse_starlette.sse import EventSourceResponse
 
 from ..services.openai_service import openai_service
-# Commented out Azure Content Safety service for NeMo Guardrails spike
-# from ..services.content_safety_service import content_safety_service
-from ..services.nemo_guardrails_service import nemo_guardrails_service
+from ..services.content_safety_strategy import content_safety_strategy_service
 
 router = APIRouter(prefix="/api", tags=["chat"])
+dev_router = APIRouter(prefix="/dev", tags=["development"])
 
 
 class ChatRequest(BaseModel):
@@ -24,6 +23,13 @@ class ChatResponse(BaseModel):
     displayResponse: str
 
 
+class ContentSafetyStrategyResponse(BaseModel):
+    """Response model for content safety strategy endpoint."""
+    strategy: str
+    description: str
+    detection_methods: Dict[str, Any]
+
+
 async def _check_service_availability() -> Optional[ChatResponse]:
     """Helper function to check if the OpenAI service is available."""
     if openai_service is None:
@@ -35,15 +41,18 @@ async def _check_service_availability() -> Optional[ChatResponse]:
 
 async def _check_content_safety(message: str) -> Dict[str, Any]:
     """
-    Helper function to check content safety using NeMo Guardrails.
+    Helper function to check content safety using the configured strategy.
+    
+    Uses content_safety_strategy_service to switch between Azure Content Safety 
+    and NeMo Guardrails based on the CONTENT_SAFETY_STRATEGY environment variable.
     
     Returns:
         Dict with keys:
         - is_safe: bool - Whether the content is safe
         - response: Optional[ChatResponse] - Response to return if content is not safe, None if safe
     """
-    # Check content safety with NeMo Guardrails (replacing Azure Content Safety)
-    is_safe, reasons = await nemo_guardrails_service.is_safe_content(message)
+    # Check content safety using the configured strategy
+    is_safe, reasons = await content_safety_strategy_service.is_safe_content(message)
     
     if is_safe:
         return {"is_safe": True, "response": None}
@@ -188,3 +197,41 @@ async def chat_stream(request: ChatRequest):
     """
     stream_generator = await _process_chat_stream_request(request.message, request.session_id)
     return EventSourceResponse(stream_generator)
+
+@dev_router.get("/content-safety/strategy", response_model=ContentSafetyStrategyResponse)
+async def get_content_safety_strategy():
+    """
+    Development endpoint to get the current content safety strategy configuration.
+    
+    This endpoint is intended for development and testing purposes to allow
+    test scripts to determine which content safety strategy is currently active
+    and what detection methods it uses.
+    
+    Returns:
+        ContentSafetyStrategyResponse: Details about the current strategy
+    """
+    current_strategy = content_safety_strategy_service.get_current_strategy()
+    
+    if current_strategy.value == "AZURE":
+        return ContentSafetyStrategyResponse(
+            strategy="AZURE",
+            description="Azure Content Safety API",
+            detection_methods={
+                "azure_api": True,
+                "nemo_patterns": False,
+                "nemo_llm": False
+            }
+        )
+    elif current_strategy.value == "NEMO":
+        return ContentSafetyStrategyResponse(
+            strategy="NEMO", 
+            description="NeMo Guardrails (pattern-based and LLM-based detection)",
+            detection_methods={
+                "azure_api": False,
+                "nemo_patterns": True,
+                "nemo_llm": True
+            }
+        )
+    else:
+        # Should not happen due to enum validation, but include for completeness
+        raise HTTPException(status_code=500, detail=f"Unknown strategy: {current_strategy.value}")

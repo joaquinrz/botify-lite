@@ -87,10 +87,44 @@ AZURE_OPENAI_API_VERSION=2024-05-01-preview
 AZURE_OPENAI_MODEL_NAME=gpt-4o-mini
 AZURE_OPENAI_VECTOR_STORE_ID=your_vector_store_id (if using vector store)
 
+# Azure Content Safety Settings (if using AZURE strategy)
+AZURE_CONTENT_SAFETY_ENDPOINT=your_content_safety_endpoint
+AZURE_CONTENT_SAFETY_KEY=your_content_safety_key
+
+# Content Safety Strategy (AZURE or NEMO, default: AZURE)
+CONTENT_SAFETY_STRATEGY=AZURE
+
 # Server Settings
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8000
 ```
+
+## Content Safety Strategies
+
+The Botify Server supports two content safety strategies that can be switched at runtime:
+
+### Azure Content Safety (Default)
+- Uses Azure AI Content Safety service for content moderation
+- Requires `AZURE_CONTENT_SAFETY_ENDPOINT` and `AZURE_CONTENT_SAFETY_KEY` environment variables
+- Set `CONTENT_SAFETY_STRATEGY=AZURE` (or leave unset as this is the default)
+
+### NeMo Guardrails
+- Uses NVIDIA's NeMo Guardrails for content safety
+- No additional API credentials required
+- Set `CONTENT_SAFETY_STRATEGY=NEMO`
+
+### Switching Strategies
+You can switch between strategies by setting the `CONTENT_SAFETY_STRATEGY` environment variable:
+
+```bash
+# Use Azure Content Safety (default)
+export CONTENT_SAFETY_STRATEGY=AZURE
+
+# Use NeMo Guardrails
+export CONTENT_SAFETY_STRATEGY=NEMO
+```
+
+The strategy is loaded at startup, so you need to restart the server after changing the environment variable.
 
 ## Development
 

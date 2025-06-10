@@ -4,7 +4,7 @@ import time
 from fastapi import FastAPI, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import router as chat_router
+from .api.routes import router as chat_router, dev_router
 from .core.config import settings
 from .core.auth import validate_token
 from .telemetry.logging import setup_logging
@@ -86,6 +86,9 @@ if os.getenv("ENABLE_AUTH", "false").lower() == "true":
     )
 else:
     app.include_router(chat_router)
+
+# Include development router (always without auth for testing)
+app.include_router(dev_router)
 
 
 @app.get("/")

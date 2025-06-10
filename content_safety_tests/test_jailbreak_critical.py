@@ -38,9 +38,64 @@ class CriticalJailbreakTester:
     def __init__(self):
         self.results: List[TestResult] = []
         self.categories = {}
+        self.strategy_info = None
+        self.test_counter = 0
+        self.total_tests = 35  # Total number of critical tests
+        
+    def get_content_safety_strategy(self) -> Dict:
+        """Query the server for current content safety strategy configuration."""
+        try:
+            response = requests.get(f"{BASE_URL}/dev/content-safety/strategy", timeout=5)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"⚠️  Could not get strategy info: HTTP {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"⚠️  Could not get strategy info: {e}")
+            return None
+    
+    def _determine_detection_method(self, response_time: float) -> str:
+        """Determine detection method based on strategy info and response time."""
+        if not self.strategy_info:
+            # Fallback to time-based inference if no strategy info available
+            if response_time < 0.1:
+                return "Unknown (very fast)"
+            elif response_time < 1.0:
+                return "Unknown (fast)"
+            elif response_time < 3.0:
+                return "Unknown (moderate)"
+            else:
+                return "Unknown (slow)"
+        
+        strategy = self.strategy_info.get('strategy', 'UNKNOWN')
+        detection_methods = self.strategy_info.get('detection_methods', {})
+        
+        if strategy == "AZURE":
+            # Azure strategy only uses Azure Content Safety API
+            if response_time < 1.0:
+                return "Azure API (fast)"
+            else:
+                return "Azure API (slow)"
+        elif strategy == "NEMO":
+            # NeMo strategy uses both patterns and LLM
+            if response_time < 0.1:
+                return "NeMo Pattern (very fast)"
+            elif response_time < 1.0:
+                return "NeMo Pattern (fast)"
+            elif response_time < 3.0:
+                return "NeMo LLM (moderate)"
+            else:
+                return "NeMo LLM (slow)"
+        else:
+            return f"{strategy} (unknown timing)"
         
     def test_message(self, message: str, category: str, subcategory: str, expected_blocked: bool = True) -> TestResult:
         """Test a single jailbreak attempt."""
+        self.test_counter += 1
+        print(f"\n[{self.test_counter:2d}/{self.total_tests}] Testing: {subcategory}")
+        print(f"Message: {message[:60]}...")
+        
         start_time = time.time()
         
         try:
@@ -66,15 +121,8 @@ class CriticalJailbreakTester:
                 
                 actually_blocked = any(indicator in response_content.lower() for indicator in blocked_indicators)
                 
-                # Determine detection method based on response time
-                if response_time < 0.1:
-                    detection_method = "Pattern-based (very fast)"
-                elif response_time < 1.0:
-                    detection_method = "Pattern-based (fast)"
-                elif response_time < 3.0:
-                    detection_method = "LLM-based (moderate)"
-                else:
-                    detection_method = "LLM-based (slow)"
+                # Determine detection method based on strategy and response time
+                detection_method = self._determine_detection_method(response_time)
                     
             else:
                 actually_blocked = True
@@ -119,11 +167,14 @@ class CriticalJailbreakTester:
         status = "✅ PASS" if result.passed else "❌ FAIL"
         block_status = "BLOCKED" if result.actually_blocked else "ALLOWED"
         
-        print(f"  {status} [{result.subcategory}] - {block_status} ({result.response_time:.3f}s) [{result.detection_method}]")
-        print(f"    Message: {result.message}")
+        print(f"    Result: {status} - {block_status} ({result.response_time:.2f}s) [{result.detection_method}]")
+        
         if not result.passed or block_status == "ALLOWED":
-            print(f"    Response: {result.response_content}")
-        print()
+            print(f"    ⚠️  Response: {result.response_content}")
+        
+        # Delay to avoid rate limiting and server overload
+        if self.test_counter < self.total_tests:
+            time.sleep(0.5)
 
     def run_critical_tests(self):
         """Run the top 35 most critical jailbreak tests."""
@@ -136,13 +187,26 @@ class CriticalJailbreakTester:
         try:
             health_response = requests.get(f"{BASE_URL}/health", timeout=5)
             if health_response.status_code == 200:
-                print("✅ Server is healthy - starting tests...")
+                print("✅ Server is healthy")
             else:
                 print(f"⚠️  Server health check failed: {health_response.status_code}")
                 return
         except Exception as e:
             print(f"❌ Cannot connect to server: {e}")
             return
+        
+        # Get content safety strategy information
+        self.strategy_info = self.get_content_safety_strategy()
+        if self.strategy_info:
+            print(f"📋 Content Safety Strategy: {self.strategy_info['strategy']}")
+            print(f"   Description: {self.strategy_info['description']}")
+            detection_methods = self.strategy_info['detection_methods']
+            active_methods = [method for method, active in detection_methods.items() if active]
+            print(f"   Active detection methods: {', '.join(active_methods)}")
+        else:
+            print("⚠️  Could not determine content safety strategy - using fallback detection")
+        print("   Starting tests...")
+        print()
         
         # Run the critical test categories
         self._test_top_direct_overrides()
@@ -158,7 +222,6 @@ class CriticalJailbreakTester:
     def _test_top_direct_overrides(self):
         """Test the most critical direct system override attempts."""
         category = "Direct System Overrides"
-        print(f"\n🔍 Testing: {category}")
         
         # Top 8 most critical direct override patterns
         test_cases = [
@@ -179,7 +242,6 @@ class CriticalJailbreakTester:
     def _test_top_roleplay_jailbreaks(self):
         """Test the most critical role-playing jailbreak attempts."""
         category = "Role-Playing Jailbreaks"
-        print(f"\n🔍 Testing: {category}")
         
         # Top 7 most critical roleplay patterns
         test_cases = [
@@ -199,7 +261,6 @@ class CriticalJailbreakTester:
     def _test_top_instruction_manipulation(self):
         """Test the most critical instruction manipulation attempts."""
         category = "Instruction Manipulation"
-        print(f"\n🔍 Testing: {category}")
         
         # Top 6 most critical instruction manipulation patterns
         test_cases = [
@@ -218,7 +279,6 @@ class CriticalJailbreakTester:
     def _test_top_character_changes(self):
         """Test the most critical character/personality change attempts."""
         category = "Character/Personality Changes"
-        print(f"\n🔍 Testing: {category}")
         
         # Top 5 most critical character change patterns
         test_cases = [
@@ -236,7 +296,6 @@ class CriticalJailbreakTester:
     def _test_top_obfuscation_attempts(self):
         """Test the most critical obfuscation and encoding attempts."""
         category = "Obfuscation Attempts"
-        print(f"\n🔍 Testing: {category}")
         
         # Top 5 most critical obfuscation patterns
         test_cases = [
@@ -254,7 +313,6 @@ class CriticalJailbreakTester:
     def _test_legitimate_requests(self):
         """Test legitimate requests to ensure they are not blocked."""
         category = "Legitimate Requests (Should NOT be blocked)"
-        print(f"\n🔍 Testing: {category}")
         
         # Top 4 legitimate requests that should always be allowed
         test_cases = [
@@ -315,13 +373,26 @@ class CriticalJailbreakTester:
         
         # Performance analysis
         avg_time = sum(r.response_time for r in self.results) / len(self.results)
-        fast_pattern = sum(1 for r in self.results if "Pattern-based" in r.detection_method)
-        llm_based = sum(1 for r in self.results if "LLM-based" in r.detection_method)
+        
+        # Group results by detection method
+        method_counts = {}
+        for result in self.results:
+            method = result.detection_method
+            if method not in method_counts:
+                method_counts[method] = 0
+            method_counts[method] += 1
         
         print("⚡ Performance Analysis:")
         print(f"  Average response time: {avg_time:.3f}s")
-        print(f"  Pattern-based detection: {fast_pattern}/{total_tests} ({fast_pattern/total_tests*100:.1f}%)")
-        print(f"  LLM-based detection: {llm_based}/{total_tests} ({llm_based/total_tests*100:.1f}%)")
+        
+        if self.strategy_info:
+            strategy = self.strategy_info['strategy']
+            print(f"  Strategy: {strategy} - {self.strategy_info['description']}")
+        
+        print("  Detection method breakdown:")
+        for method, count in sorted(method_counts.items()):
+            percentage = count / total_tests * 100
+            print(f"    {method}: {count}/{total_tests} ({percentage:.1f}%)")
         print()
         
         if failed_tests == 0:

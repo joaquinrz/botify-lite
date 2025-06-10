@@ -26,7 +26,7 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
   - Supports both streaming and non-streaming responses
   - RESTful API endpoints
   - Complete with unit tests
-  - Azure Content Safety integration for content moderation
+  - **Dual Content Safety Strategies**: Azure Content Safety and NeMo Guardrails with runtime switching
   - Vector store integration for enhanced knowledge retrieval
   - Optional token-based authentication
 
@@ -55,7 +55,8 @@ A complete solution for interacting with Azure OpenAI, consisting of a FastAPI b
   - Local observability stack with Aspire Dashboard
 
 - **Privacy & Security**:
-  - Content moderation via Azure Content Safety
+  - **Content moderation with dual strategies**: Azure Content Safety and NeMo Guardrails
+  - **Runtime strategy switching** via environment variables
   - Configurable telemetry with privacy controls
   - Sensitive information redaction in logs and traces
 
@@ -169,12 +170,48 @@ poetry run create-vector-store
 
 The script will create a vector store and display its ID, which should be added to your `apps/credentials.env` file.
 
-### 5. Running the Application
+### 5. Content Safety Strategy Configuration
+
+The application supports two content safety strategies that can be switched at runtime:
+
+#### Azure Content Safety (Default)
+- Uses Azure AI Content Safety service for content moderation
+- Requires Azure Content Safety service credentials in your environment
+- Set `CONTENT_SAFETY_STRATEGY=AZURE` in your credentials.env file (or leave unset as this is the default)
+
+#### NeMo Guardrails
+- Uses NVIDIA's NeMo Guardrails for content safety
+- No additional API credentials required
+- Set `CONTENT_SAFETY_STRATEGY=NEMO` in your credentials.env file
+
+To configure your preferred strategy, add this line to your `apps/credentials.env` file:
+
+```bash
+# Content Safety Strategy (AZURE or NEMO)
+CONTENT_SAFETY_STRATEGY=AZURE  # Default, can be changed to NEMO
+```
+
+**Testing Both Strategies:**
+Use the simple comparison script to test both strategies automatically:
+
+```bash
+# This will switch strategies, restart the server, run tests, and compare results
+python simple_strategy_test.py
+```
+
+The script will:
+1. Set Azure strategy in credentials.env and restart the server
+2. Run content safety tests
+3. Set NeMo strategy in credentials.env and restart the server
+4. Run content safety tests again
+5. Compare and display the results
+
+### 6. Running the Application
 
 You can run the application using Docker Compose, which will start all services:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 Or run individual components:
@@ -190,7 +227,7 @@ docker-compose up botify_cli
 docker-compose up react-frontend botify_server tokenservice
 ```
 
-### 6. Accessing the Web Interface
+### 7. Accessing the Web Interface
 
 Once the application is running, you can access:
 
